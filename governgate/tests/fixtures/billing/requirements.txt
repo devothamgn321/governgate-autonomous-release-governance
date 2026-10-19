@@ -1,0 +1,3 @@
+# Shared auth SDK. CI installs the exact commit from governgate2/core-auth-sdk (SDK_REF) before this file.
+core-auth-sdk>=1.0,<2
+pytest>=8

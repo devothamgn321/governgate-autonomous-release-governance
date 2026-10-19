@@ -1,0 +1,36 @@
+# core-auth-sdk pipeline
+# test  -> unit + security tests
+# build -> wheel + SHA-256, so consumers can prove which exact package they ran
+
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - test
+  - build
+
+default:
+  image: python:3.12
+
+unit-and-security-tests:
+  stage: test
+  script:
+    - pip install --quiet ".[test]"
+    - pytest -v --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+
+build-wheel:
+  stage: build
+  script:
+    - pip install --quiet build
+    - python -m build --wheel --outdir dist/
+    - cd dist && sha256sum *.whl | tee SHA256SUMS
+    - echo "Built from commit $CI_COMMIT_SHA"
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 30 days

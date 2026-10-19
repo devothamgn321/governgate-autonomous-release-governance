@@ -1,0 +1,74 @@
+# GovernGate — core-auth-sdk CI Pipeline
+
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - test
+  - build
+
+variables:
+  AST_ENABLE_MR_PIPELINES: "true"
+
+# Run on merge requests and the default branch.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+default:
+  image: python:3.12
+
+# Existing unit and security regression tests
+unit-and-security-tests:
+  stage: test
+  script:
+    - pip install --quiet ".[test]"
+    - pytest -v --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# NEW — Python security analysis
+bandit-security:
+  stage: test
+  script:
+    - pip install --quiet bandit
+    - bandit -r . -x tests,.venv,build,dist -ll
+  allow_failure: false
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# NEW — Python dependency vulnerability scanning
+dependency-audit:
+  stage: test
+  script:
+    - pip install --quiet pip-audit
+    - pip-audit .
+  allow_failure: false
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# Existing wheel build with artifact identification
+build-wheel:
+  stage: build
+  script:
+    - pip install --quiet build
+    - python -m build --wheel --outdir dist/
+    - cd dist
+    - sha256sum *.whl | tee SHA256SUMS
+    - printf '%s\n' "$CI_COMMIT_SHA" > SOURCE_COMMIT_SHA
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 30 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

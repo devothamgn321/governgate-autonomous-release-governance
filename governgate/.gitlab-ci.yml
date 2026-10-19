@@ -1,0 +1,88 @@
+spec:
+  inputs:
+    mr_iid:
+      type: string
+      default: "0"
+      regex: '^[0-9]+$'
+    head_sha:
+      type: string
+      default: "0000000000000000000000000000000000000000"
+      regex: '^[0-9a-f]{40}$'
+---
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+stages: [test, verify]
+variables:
+  AST_ENABLE_MR_PIPELINES: "true"
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+default:
+  image: python:3.12
+
+unit-tests:
+  stage: test
+  script:
+    - pip install '.[test]' pyyaml
+    - pytest -q --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+
+trusted-controller:
+  stage: verify
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: /certs
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: /certs/client
+  environment:
+    name: governgate-controller
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true" && ($CI_PIPELINE_SOURCE == "pipeline" || $CI_PIPELINE_SOURCE == "web")'
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - python3 -m venv /tmp/controller-venv
+    - /tmp/controller-venv/bin/pip install .
+  script:
+    - docker build --pull -t governgate-worker -f ci/Dockerfile.worker ci
+    - WORKER_IMAGE=$(docker image inspect --format '{{.Id}}' governgate-worker)
+    - /tmp/controller-venv/bin/python -m governgate.controller --mr '$[[ inputs.mr_iid ]]' --head '$[[ inputs.head_sha ]]' --image "$WORKER_IMAGE"
+  timeout: 15m
+  allow_failure: false
+  artifacts:
+    when: always
+    paths:
+      - governgate-evidence.json
+      - governgate-report.md
+    expire_in: 90 days
+
+sandbox-smoke:
+  stage: test
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: /certs
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: /certs/client
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - python3 -m venv /tmp/smoke-venv
+    - /tmp/smoke-venv/bin/pip install .
+  script:
+    - docker build --pull -t governgate-worker -f ci/Dockerfile.worker ci
+    - WORKER_IMAGE=$(docker image inspect --format '{{.Id}}' governgate-worker)
+    - /tmp/smoke-venv/bin/python ci/smoke.py "$WORKER_IMAGE"
+  timeout: 10m

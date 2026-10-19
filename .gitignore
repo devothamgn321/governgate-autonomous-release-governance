@@ -1,0 +1,13 @@
+.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+governgate-evidence.json
+governgate-report.md

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "governgate"
+version = "0.1.0"
+description = "Cross-service change impact checks for shared libraries on GitLab"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["requests>=2.31"]
+
+[project.optional-dependencies]
+# PyJWT: the end-to-end test runs the demo SDK and consumer suites, which need it.
+test = ["pytest>=8", "PyJWT>=2.8,<3", "defusedxml>=0.7.1,<1"]
+
+[project.scripts]
+governgate = "governgate.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["governgate*"]

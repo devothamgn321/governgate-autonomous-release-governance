@@ -1,0 +1,4 @@
+FROM python:3.12-slim
+RUN pip install --no-cache-dir pytest==9.1.1 PyJWT==2.15.1 defusedxml==0.7.1
+COPY worker.py worker_results.py /opt/
+ENTRYPOINT ["python", "-I", "/opt/worker.py"]

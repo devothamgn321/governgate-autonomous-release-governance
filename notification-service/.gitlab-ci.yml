@@ -1,0 +1,40 @@
+# notification-service pipeline
+#
+# Installs core-auth-sdk from its GitLab project, prints exactly which SDK
+# was installed (version, location, git ref), then runs the integration tests.
+#
+# GovernGate later re-runs this pipeline with SDK_REF set to a candidate
+# commit SHA, so the same notification commit is tested against old vs new SDK.
+
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+stages:
+  - test
+
+variables:
+  # Immutable baseline: the v1.0.0 tag of core-auth-sdk.
+  SDK_REF: "v1.0.0"
+  SDK_PROJECT: "gitlab.com/governgate2/core-auth-sdk.git"
+
+default:
+  image: python:3.12
+
+integration-tests:
+  stage: test
+  script:
+    - echo "Installing core-auth-sdk at ref $SDK_REF"
+    - pip install --quiet "core-auth-sdk @ git+https://gitlab-ci-token:${CI_JOB_TOKEN}@${SDK_PROJECT}@${SDK_REF}"
+    - pip install --quiet -r requirements.txt
+    - python -c "import core_auth_sdk; print('SDK version:', core_auth_sdk.__version__); print('SDK file:', core_auth_sdk.__file__)"
+    - pip freeze | tee installed-packages.txt
+    - echo "notification commit $CI_COMMIT_SHA tested against core-auth-sdk ref $SDK_REF" | tee sdk-identity.txt
+    - pytest -v --junitxml=report.xml
+  artifacts:
+    when: always
+    paths:
+      - installed-packages.txt
+      - sdk-identity.txt
+    reports:
+      junit: report.xml

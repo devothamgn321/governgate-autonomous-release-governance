@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "core-auth-sdk"
+version = "1.0.0"
+description = "Shared token issuing and verification for internal services"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["PyJWT>=2.8,<3"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
