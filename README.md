@@ -60,6 +60,8 @@ GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3)
 
 The protected `governgate-controller` environment allows the project owner and Rohan Mahendra (`bmrohan003`) to deploy. The project has no `GOVERNGATE_API_TOKEN` variable yet. GitLab documents the `CI_UPSTREAM_*` variables from version 18.9, and the `trigger_jobs` endpoint plus a real downstream relationship have been verified in a live API response. A run with the updated controller is still needed to verify the injected values and execute the consumers. Nebius is optional and disabled.
 
+The detailed documentation refresh is under review in GovernGate MR [!4](https://gitlab.com/governgate2/governgate/-/merge_requests/4), SDK MR [!5](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/5), billing MR [!2](https://gitlab.com/governgate2/billing-service/-/merge_requests/2), and notification MR [!2](https://gitlab.com/governgate2/notification-service/-/merge_requests/2). Their documentation pipelines passed: `2961278174`, `2961278340`, `2961277951`, and `2961277961`, respectively. None of these documentation MRs has been merged.
+
 This monorepo includes the verified GitLab `main` snapshots only; it does not silently import unmerged merge-request changes or claim that the live controller has passed. The root GitHub Actions workflow runs the complete local test suite. GitLab controller settings, protected variables, job-token permissions, and Duo review remain managed in the four original GitLab projects. The GitHub monorepo is private, and the four GitLab source projects are also private; the Devpost public-repository requirement is not yet met.
 
 ## Source revisions
