@@ -3,7 +3,7 @@
 Only the calls GovernGate needs. All of them go through `_request`, so tests
 can swap in a fake client with the same public methods.
 
-Auth: a group access token in GOVERNGATE_API_TOKEN (scopes: api).
+Auth: a group access token in GOVERNGATE_API_TOKEN (scopes: read_api).
 It is read from the environment only, never logged.
 """
 
@@ -119,8 +119,15 @@ class GitLabClient:
     def get_pipeline(self, project_id, pipeline_id):
         return self._request("GET", "/projects/" + self._enc(project_id) + "/pipelines/" + str(pipeline_id))
 
+    def get_job(self, project_id, job_id):
+        return self._request("GET", "/projects/" + self._enc(project_id) + "/jobs/" + str(job_id))
+
     def list_pipeline_jobs(self, project_id, pipeline_id):
         return self._list("/projects/" + self._enc(project_id) + "/pipelines/" + str(pipeline_id) + "/jobs")
+
+    def list_pipeline_trigger_jobs(self, project_id, pipeline_id):
+        """List bridge/trigger jobs for a pipeline (GitLab 19.2+ API)."""
+        return self._list("/projects/" + self._enc(project_id) + "/pipelines/" + str(pipeline_id) + "/trigger_jobs")
 
     def get_job_log(self, project_id, job_id):
         return self._request("GET", "/projects/" + self._enc(project_id) + "/jobs/" + str(job_id) + "/trace")

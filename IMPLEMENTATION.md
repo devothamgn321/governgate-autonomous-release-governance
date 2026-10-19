@@ -83,6 +83,14 @@ The system rejects missing consumers, incomplete pagination, content/hash mismat
 
 The current feature MRs and GitLab pipeline evidence are recorded in the root README. As of this review, GovernGate MR !3's resolver fix is on its feature branch and its pipeline passed, but it is not merged. The SDK bridge MR !2 remains open/draft. One older live downstream run failed closed before executing the consumer comparisons. No successful API-backed end-to-end gate is claimed.
 
+## Staged controller integration update
+
+The review branch `feature/trusted-upstream-controller` carries the implementation from GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3) and the credential-free bridge from SDK MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2). GovernGate commit `f97389a5d905ab85498df6b6a9282ba030175b46` passed pipeline [2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877). The six existing SDK jobs passed in pipeline [2961227944](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2961227944), while the new bridge failed closed because the resolver was not yet present on GovernGate `main`.
+
+The controller now resolves the SDK MR from `CI_UPSTREAM_PROJECT_ID`, `CI_UPSTREAM_PIPELINE_ID`, and `CI_UPSTREAM_JOB_ID`. It verifies that the upstream pipeline belongs to the fixed SDK project, is a detached merge-request pipeline with an expected MR ref, and still points to the current MR head. It uses GitLab's pipeline-scoped trigger-jobs API to prove that the named `governgate-impact` bridge created this exact downstream controller pipeline in the fixed controller project. The SDK bridge forwards no YAML or pipeline variables and supplies no MR ID, commit SHA, or credentials.
+
+This stage proves the identity-resolution code with unit tests and GitLab CI; it does not prove injected upstream metadata in a protected controller run or a live API-backed consumer comparison. Keep both MRs in review. After the controller resolver is reviewed and merged, provision the protected read-only token, then rerun the SDK bridge and verify its downstream result. The token is required for project, MR, commit, and repository reads. The GitHub `main` branch remains the pinned GitLab snapshot; this feature branch intentionally includes the unmerged review changes.
+
 ## Local verification
 
 From the monorepo root, run the complete suite:

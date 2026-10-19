@@ -72,3 +72,20 @@ build-wheel:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# Include only after the engine MR is reviewed, merged and activation checks pass.
+# The MR job is a GitLab bridge; it executes no code and receives no API/Nebius key.
+governgate-impact:
+  stage: .post
+  inherit:
+    variables: false
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  allow_failure: false
+  trigger:
+    project: governgate2/governgate
+    branch: main
+    strategy: mirror
+    forward:
+      yaml_variables: false
+      pipeline_variables: false

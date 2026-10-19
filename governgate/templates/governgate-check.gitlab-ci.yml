@@ -1,5 +1,7 @@
 # Include only after the engine MR is reviewed, merged and activation checks pass.
-# The MR job is a GitLab bridge; it executes no code and receives no API/Nebius key.
+# The MR job is a GitLab bridge; it executes no code, forwards no variables, and
+# receives no API/Nebius key. The protected controller resolves the source MR
+# and exact head SHA from GitLab's upstream pipeline and bridge-job metadata.
 governgate-impact:
   stage: .post
   inherit:
@@ -11,9 +13,6 @@ governgate-impact:
     project: governgate2/governgate
     branch: main
     strategy: mirror
-    inputs:
-      mr_iid: $CI_MERGE_REQUEST_IID
-      head_sha: $CI_COMMIT_SHA
     forward:
       yaml_variables: false
       pipeline_variables: false

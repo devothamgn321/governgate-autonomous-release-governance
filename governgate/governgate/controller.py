@@ -27,6 +27,7 @@ CONTROLLER = 87601227
 SDK = 87600355
 CONSUMERS = {87601313: "billing-service", 87601329: "notification-service"}
 SHA = re.compile(r"[0-9a-f]{40}\Z")
+MR_REF = re.compile(r"refs/merge-requests/([1-9][0-9]*)/head\Z")
 MAX_BYTES = 20 * 1024 * 1024
 MAX_WORKER_LOG_BYTES = 1024 * 1024
 
@@ -211,28 +212,67 @@ def execute(client, iid, expected_head, image):
     return record
 
 
+def resolve_upstream_request(client, upstream_project, pipeline_id, job_id,
+                             current_pipeline_id, current_project_id=CONTROLLER):
+    """Resolve the SDK MR from GitLab's immutable downstream relationship."""
+    if str(upstream_project) != str(SDK):
+        raise ValueError("Unexpected upstream project")
+    if not str(pipeline_id).isdigit() or int(pipeline_id) < 1:
+        raise ValueError("Missing upstream pipeline identity")
+    if not str(job_id).isdigit() or int(job_id) < 1:
+        raise ValueError("Missing upstream bridge identity")
+    if not str(current_pipeline_id).isdigit() or int(current_pipeline_id) < 1:
+        raise ValueError("Missing current controller pipeline identity")
+    if str(current_project_id) != str(CONTROLLER):
+        raise ValueError("Unexpected controller project")
+    pipeline = client.get_pipeline(SDK, int(pipeline_id))
+    if (int(pipeline.get("project_id", 0)) != SDK
+            or pipeline.get("source") != "merge_request_event"):
+        raise ValueError("Upstream pipeline is not an SDK merge-request pipeline")
+    match = MR_REF.fullmatch(pipeline.get("ref", ""))
+    if not match:
+        raise ValueError("Upstream pipeline is not a detached merge-request pipeline")
+    head = require_sha(pipeline.get("sha"))
+    # Bridge jobs are not reliably returned by the regular Jobs API. Use the
+    # pipeline-scoped trigger_jobs endpoint and bind the downstream relation.
+    jobs = client.list_pipeline_trigger_jobs(SDK, int(pipeline_id))
+    job = next((item for item in jobs if int(item.get("id", 0)) == int(job_id)), None)
+    downstream = (job or {}).get("downstream_pipeline") or {}
+    if (not job or job.get("name") != "governgate-impact"
+            or int(job.get("pipeline", {}).get("id", 0)) != int(pipeline_id)
+            or int(downstream.get("id", 0)) != int(current_pipeline_id)
+            or int(downstream.get("project_id", 0)) != CONTROLLER):
+        raise ValueError("Upstream job is not the GovernGate bridge for this pipeline")
+    iid = int(match.group(1))
+    mr = client.get_merge_request(SDK, iid)
+    if mr.get("diff_refs", {}).get("head_sha") != head:
+        raise ValueError("Upstream pipeline SHA does not match the current MR head")
+    return iid, head
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mr", type=int, required=True)
-    parser.add_argument("--head", required=True)
     parser.add_argument("--image", required=True)
     args = parser.parse_args(argv)
-    record = {"verdict": "INCOMPLETE_EVIDENCE", "mr_iid": args.mr, "project_id": SDK}
+    record = {"verdict": "INCOMPLETE_EVIDENCE", "project_id": SDK}
     try:
         if (os.environ.get("CI_PROJECT_ID") != str(CONTROLLER)
                 or os.environ.get("CI_COMMIT_BRANCH") != "main"
                 or os.environ.get("CI_COMMIT_REF_PROTECTED") != "true"
-                or os.environ.get("CI_PIPELINE_SOURCE") not in {"pipeline", "web"}):
+                or os.environ.get("CI_PIPELINE_SOURCE") != "pipeline"):
             raise ValueError("Protected trusted-controller execution is required")
-        if args.mr < 1:
-            raise ValueError("A merge request IID is required")
         client = GitLabClient(base_url=API)
-        record = execute(client, args.mr, args.head, args.image)
+        iid, head = resolve_upstream_request(
+            client, os.environ.get("CI_UPSTREAM_PROJECT_ID"),
+            os.environ.get("CI_UPSTREAM_PIPELINE_ID"), os.environ.get("CI_UPSTREAM_JOB_ID"),
+            os.environ.get("CI_PIPELINE_ID"), os.environ.get("CI_PROJECT_ID"))
+        record["mr_iid"] = iid
+        record = execute(client, iid, head, args.image)
     except Exception as error:
         # Do not print API bodies, credential-bearing URLs or arbitrary exception text.
         record = {**record, "verdict": "INCOMPLETE_EVIDENCE", "error_type": type(error).__name__}
     Path("governgate-evidence.json").write_text(json.dumps(evidence_ledger.seal(record), indent=2))
-    lines = ["# GovernGate: " + record["verdict"], "", f"SDK MR !{args.mr}"]
+    lines = ["# GovernGate: " + record["verdict"], "", f"SDK MR !{record.get('mr_iid') or 'unknown'}"]
     for name, pair in record.get("runs", {}).items():
         lines.append(f"- {name}: baseline {pair['baseline']['status']}; candidate {pair['candidate']['status']}")
     for limitation in record.get("evidence_limitations", []):
