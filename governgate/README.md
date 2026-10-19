@@ -162,19 +162,34 @@ secret-detection findings. Post-merge pipeline
 also passed all four jobs. Local tests passed 69 cases. GitLab container smoke
 used archived deterministic fixtures and exercised baseline/candidate runs,
 isolation, candidate early exit, forged JUnit, and output flooding. These runs
-do not prove live API access or a real downstream SDK-MR gate. No
-API-backed controller run, credential provisioning, or Nebius request is
-claimed as complete.
+do not prove live API access or a real downstream SDK-MR gate.
 
 The latest bridge attempt is pipeline
 [2961227944](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2961227944),
 commit `9ef8ca0b3b3078e99e1249b9fe3f332255e4f303`. All six SDK checks passed.
 Its downstream pipeline
 [2961234944](https://gitlab.com/governgate2/governgate/-/pipelines/2961234944)
-passed the four controller test/security jobs but the trusted-controller job
+passed the controller test/security jobs but the trusted-controller job
 failed closed because it ran GovernGate `main` at `53264f67`, which still
-expects `--mr` and `--head`. MR !3's upstream identity resolver has passed its
-own pipeline but is not merged. No four-run consumer evidence was produced.
+expects `--mr` and `--head`. The live trigger-job API response confirmed the
+bridge ID and downstream pipeline/project relationship for that run; no
+consumer comparison was produced.
+
+GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3)
+now contains commit `f97389a5d905ab85498df6b6a9282ba030175b46`. It lists
+trigger jobs through the pipeline-scoped `trigger_jobs` endpoint and verifies
+that the downstream pipeline and project match this controller run. Pipeline
+[2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877)
+passed. GitLab's official predefined-variable reference documents
+`CI_UPSTREAM_PROJECT_ID`, `CI_UPSTREAM_PIPELINE_ID`, and
+`CI_UPSTREAM_JOB_ID` for multi-project and parent-child pipelines, introduced
+in GitLab 18.9. Their values have not yet been observed in a controller run
+using this updated code. MR !3 remains unmerged and an API-backed consumer
+comparison is still pending.
+
+No GitLab API token has been provisioned. Add a short-lived `read_api` token as
+a protected, masked variable in the controller project before a trusted live
+run. Nebius remains optional and disabled.
 
 ## Development
 

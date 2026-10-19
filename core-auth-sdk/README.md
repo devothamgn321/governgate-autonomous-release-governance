@@ -29,14 +29,18 @@ runbook](https://gitlab.com/governgate2/governgate/-/blob/main/README.md).
 The engine has been merged to `governgate2/governgate/main`. The proposed
 credential-free SDK bridge is tracked in
 [MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2).
-Until that bridge is reviewed and the protected controller is provisioned,
-the SDK pipeline does not provide a verified live GovernGate result. The
-current bridge proposal forwards no variables or credentials. The paired
-GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3)
+Until both merge requests are reviewed and the protected controller is
+provisioned, the SDK pipeline does not provide a verified live GovernGate
+result. The current bridge proposal forwards no variables or credentials. The
+paired GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3)
 resolves the SDK MR and exact head SHA from GitLab's upstream pipeline and
-bridge-job metadata; it must not receive an API token or Nebius key. The bridge
-result is mirrored into the SDK pipeline after the existing tests, scans, and
-wheel build. The separate demo preparation change is
+bridge-job metadata. Commit `f97389a5d905ab85498df6b6a9282ba030175b46` passed
+GovernGate pipeline [2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877).
+The trigger-job API endpoint and its downstream relationship have been
+verified against a real GitLab pipeline response; a live run using the updated
+resolver is still needed. The controller must not receive an API token or
+Nebius key through the SDK bridge. The bridge result is mirrored into the SDK
+pipeline after the existing tests, scans, and wheel build. The separate demo preparation change is
 [MR !3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3).
 
 ## Pipeline and merge workflow
