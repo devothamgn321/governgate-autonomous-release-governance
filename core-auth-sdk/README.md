@@ -31,10 +31,13 @@ credential-free SDK bridge is tracked in
 [MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2).
 Until that bridge is reviewed and the protected controller is provisioned,
 the SDK pipeline does not provide a verified live GovernGate result. The
-bridge passes only the SDK MR IID and full head SHA to the controller; it must
-not receive an API token or Nebius key. Its result is mirrored into the SDK
-pipeline after the existing tests, scans, and wheel build. The separate demo
-preparation change is [MR !3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3).
+current bridge proposal forwards no variables or credentials. The paired
+GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3)
+resolves the SDK MR and exact head SHA from GitLab's upstream pipeline and
+bridge-job metadata; it must not receive an API token or Nebius key. The bridge
+result is mirrored into the SDK pipeline after the existing tests, scans, and
+wheel build. The separate demo preparation change is
+[MR !3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3).
 
 ## Pipeline and merge workflow
 
@@ -49,8 +52,9 @@ For an SDK change:
 1. Open a merge request targeting `main`; the existing test and security jobs
    run against that change.
 2. Review all six jobs and inspect the wheel source SHA and checksum.
-3. Once the bridge is merged and activation is verified, the final bridge job
-   sends the MR IID and exact source SHA to the protected GovernGate controller.
+3. Once both bridge and controller changes are reviewed and merged and
+   activation is verified, the protected controller resolves the MR IID and
+   exact source SHA from trusted upstream pipeline metadata.
 4. Review the controller evidence for the baseline and candidate runs of both
    consumers. A candidate failure blocks. A candidate pass still requires
    human review because candidate code can forge its JUnit report.

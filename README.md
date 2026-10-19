@@ -31,9 +31,10 @@ The script runs the SDK tests, both consumer test suites, and GovernGate's unit,
 
 ```text
 core-auth-sdk merge request
-        │ GitLab bridge: MR IID + exact 40-character head SHA
+        │ GitLab bridge: no forwarded variables or credentials
         ▼
 protected GovernGate controller environment
+        │ resolve and validate GitLab upstream pipeline/job metadata
         │ read-only GitLab API access
         ├── resolve baseline and candidate SDK source identities
         ├── enumerate billing and notification repositories
@@ -45,11 +46,13 @@ isolated test workers: baseline × 2 consumers, candidate × 2 consumers
 evidence ledger → fail-closed policy → mirrored SDK pipeline status
 ```
 
-Only the protected controller needs the GitLab API credential. Its job must use a protected branch, protected environment, restricted runner, and `GOVERNGATE_API_TOKEN` scoped to `governgate-controller`. The SDK bridge forwards typed inputs only and does not forward YAML or pipeline variables. Review the GovernGate README for the full operator sequence and current GitLab activation requirements.
+Only the protected controller needs the GitLab API credential. The proposed controller change checks that the upstream pipeline belongs to the SDK project, came from a detached merge-request pipeline, points to the expected MR ref, was started by the `governgate-impact` bridge job, and still matches the live MR head. The bridge forwards no variables or credentials. This handoff is proposed in GovernGate MR !3 and is not in the local `main` snapshot yet. Review the GovernGate README for the current activation requirements.
 
 ## GitLab integration status
 
-The GovernGate engine and all four README updates are merged into their respective GitLab `main` branches. Their post-merge pipelines passed. The credential-free SDK bridge remains a separate draft merge request while the live controller is activated and verified. The live API-backed four-run comparison and mirrored MR-blocking demonstration are not yet verified. Do not merge the deliberately breaking SDK demonstration MR into `main`.
+The GovernGate engine and all four README updates are merged into their respective GitLab `main` branches. Their post-merge pipelines passed. SDK bridge MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2) is open as a draft. Its six SDK security, test, and build jobs passed, and it created downstream pipeline [2961234944](https://gitlab.com/governgate2/governgate/-/pipelines/2961234944). The downstream scans and tests passed, but the trusted controller failed closed because GovernGate `main` still uses the old CLI inputs. The proposed upstream-identity resolver is in GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3), whose four-job pipeline [2961229650](https://gitlab.com/governgate2/governgate/-/pipelines/2961229650) passed. Neither MR has been merged. No live consumer comparison or mirrored merge-blocking demonstration is verified. Do not merge the deliberately breaking SDK demonstration MR into `main`.
+
+The protected `governgate-controller` environment allows the project owner and Rohan Mahendra (`bmrohan003`) to deploy. The project has no `GOVERNGATE_API_TOKEN` variable yet. Nebius is optional and disabled. Follow the GovernGate runbook after the controller MR is reviewed and merged, then rerun the SDK bridge.
 
 This monorepo includes the verified GitLab `main` snapshots only; it does not silently import unmerged merge-request changes or claim that the live controller has passed. The root GitHub Actions workflow runs the complete local test suite. GitLab controller settings, protected variables, job-token permissions, and Duo review remain managed in the four original GitLab projects.
 

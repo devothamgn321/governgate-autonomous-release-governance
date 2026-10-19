@@ -10,8 +10,10 @@ The engine and protected-controller CI are merged to
 [!1](https://gitlab.com/governgate2/governgate/-/merge_requests/1) was merged on
 October 18, 2026 at `c702640dbef1adebb6bd47441bbc5a7619046c65`. The engine's
 post-merge pipeline [2961146318](https://gitlab.com/governgate2/governgate/-/pipelines/2961146318)
-passed all four jobs. The SDK bridge is still a separate proposed change; the
-live API-backed controller has not yet been activated or demonstrated.
+passed all four jobs. The bridge and controller handoff remain under review in
+SDK MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2)
+and GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3).
+The live API-backed consumer comparison has not passed yet.
 
 ## Architecture
 
@@ -19,8 +21,9 @@ live API-backed controller has not yet been activated or demonstrated.
 core-auth-sdk merge request
   ├─ existing SDK unit/security checks, SAST, secret detection, and wheel build
   └─ proposed credential-free CI bridge (SDK MR !2)
-       └─ typed inputs: MR IID + exact 40-character SDK head SHA
-            └─ protected governgate/main controller pipeline
+       └─ no forwarded variables or credentials
+            └─ protected governgate/main controller pipeline (MR !3)
+                 └─ resolve upstream pipeline/job IDs and verify the live SDK MR head
                  ├─ reads MR, SDK, and consumer source from GitLab API
                  ├─ checks commit identity and SHA-256 file content metadata
                  └─ sends source archives to isolated Docker workers via stdin
@@ -31,9 +34,11 @@ core-auth-sdk merge request
 The bridge is a GitLab multi-project trigger job. It executes no Python and
 receives no API or Nebius key. It disables inherited variables and disables
 forwarding YAML and pipeline variables. It mirrors the controller pipeline
-result back to the SDK pipeline. The controller only accepts a same-project,
-open SDK MR targeting `main`, and verifies that the submitted head SHA equals
-the live MR head before collecting evidence.
+result back to the SDK pipeline. The proposed controller change resolves the
+originating SDK MR from GitLab's upstream pipeline and bridge-job metadata,
+then verifies the detached MR ref and exact live head SHA before collecting
+evidence. This resolver is in MR !3; the version currently on `main` does not
+yet support this no-input handoff.
 
 The controller snapshots the current SDK target commit, the exact MR source
 commit, and the current `main` commit of each consumer. It paginates complete
@@ -106,18 +111,20 @@ step. Complete these steps in order before relying on the cross-service gate:
    worker images, and CI configuration.
 2. Disable access to protected variables and runners from merge-request
    pipelines in every affected project. In the controller project's CI/CD
-   settings, set the minimum role allowed to use pipeline variables to
-   `no_one_allowed`. Inputs are the only supported external parameters. This
-   prevents high-precedence variables from overriding predefined values, Docker
-   transport settings, Python startup, or build commands.
+   settings, keep the minimum role allowed to use pipeline variables at
+   `no_one_allowed`. The bridge forwards no caller-controlled inputs or
+   variables. This prevents high-precedence variables from overriding
+   predefined values, Docker transport settings, Python startup, or commands.
 3. Audit group, project, and runner variables for inherited personal tokens,
    Nebius keys, and signing keys. Remove unsafe placements before enabling the
    controller. Masking alone does not isolate a secret.
 4. Create a short-lived group access token with `read_api` only. Store it only
    as protected and masked project variable `GOVERNGATE_API_TOKEN` in the
    `governgate` project, scoped to `governgate-controller`. Do not put it at
-   group scope or pass it to an SDK or worker job. Keep Nebius disabled.
-5. Protect the `governgate-controller` environment and restrict who can run it.
+   group scope or pass it to an SDK or worker job. This variable is not set yet.
+   Keep Nebius disabled.
+5. Keep the protected `governgate-controller` environment restricted to the
+   project owner and `bmrohan003`; this is separate from branch push access.
    Configure the job-token allowlist narrowly so the SDK project's bridge can
    start the controller pipeline without granting unrelated project access.
 6. Use a dedicated Docker-in-Docker runner with TLS certificate sharing. Do not
@@ -158,6 +165,16 @@ isolation, candidate early exit, forged JUnit, and output flooding. These runs
 do not prove live API access or a real downstream SDK-MR gate. No
 API-backed controller run, credential provisioning, or Nebius request is
 claimed as complete.
+
+The latest bridge attempt is pipeline
+[2961227944](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2961227944),
+commit `9ef8ca0b3b3078e99e1249b9fe3f332255e4f303`. All six SDK checks passed.
+Its downstream pipeline
+[2961234944](https://gitlab.com/governgate2/governgate/-/pipelines/2961234944)
+passed the four controller test/security jobs but the trusted-controller job
+failed closed because it ran GovernGate `main` at `53264f67`, which still
+expects `--mr` and `--head`. MR !3's upstream identity resolver has passed its
+own pipeline but is not merged. No four-run consumer evidence was produced.
 
 ## Development
 
