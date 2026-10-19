@@ -81,7 +81,7 @@ def test_untrusted_context_never_constructs_api_client(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('CI_PROJECT_ID', str(controller.SDK))
     monkeypatch.setattr(controller, 'GitLabClient', lambda **k: pytest.fail('must not access token'))
-    assert controller.main(['--mr', '1', '--head', 'a' * 40, '--image', 'sha256:' + 'b' * 64]) == 1
+    assert controller.main(['--image', 'sha256:' + 'b' * 64]) == 1
     evidence = json.loads(Path('governgate-evidence.json').read_text())
     assert 'INCOMPLETE_EVIDENCE' in json.dumps(evidence)
     assert Path('governgate-report.md').exists()
@@ -95,7 +95,7 @@ def test_controller_does_not_leak_exception_message(monkeypatch, tmp_path):
     def fail(**kwargs):
         raise RuntimeError('secret-test-value')
     monkeypatch.setattr(controller, 'GitLabClient', fail)
-    assert controller.main(['--mr', '1', '--head', 'a' * 40, '--image', 'sha256:' + 'b' * 64]) == 1
+    assert controller.main(['--image', 'sha256:' + 'b' * 64]) == 1
     assert 'secret-test-value' not in Path('governgate-evidence.json').read_text()
 
 
@@ -112,8 +112,9 @@ def test_bridge_forwards_no_variables_or_credentials():
     assert bridge['trigger']['forward'] == {'yaml_variables': False, 'pipeline_variables': False}
     assert bridge['inherit']['variables'] is False
     assert 'script' not in bridge and 'variables' not in bridge
-    docs = list(yaml.safe_load_all((root / '.gitlab-ci.yml').read_text()))
-    assert docs[1]['trusted-controller']['environment']['name'] == 'governgate-controller'
+    config = yaml.safe_load((root / '.gitlab-ci.yml').read_text())
+    assert config['trusted-controller']['environment']['name'] == 'governgate-controller'
+    assert 'inputs' not in bridge['trigger']
 
 
 def test_worker_receives_no_host_credentials(monkeypatch):
