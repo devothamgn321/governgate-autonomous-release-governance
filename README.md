@@ -29,6 +29,10 @@ The script runs the SDK tests, both consumer test suites, and GovernGate's unit,
 
 ## Architecture and trust boundary
 
+The complete component map, request flow, source-identity rules, worker
+isolation, verdict policy, activation runbook, and verified-versus-pending
+status are documented in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+
 ```text
 core-auth-sdk merge request
         │ GitLab bridge: no forwarded variables or credentials
@@ -46,7 +50,7 @@ isolated test workers: baseline × 2 consumers, candidate × 2 consumers
 evidence ledger → fail-closed policy → mirrored SDK pipeline status
 ```
 
-Only the protected controller needs the GitLab API credential. The proposed controller change checks that the upstream pipeline belongs to the SDK project, came from a detached merge-request pipeline, points to the expected MR ref, was started by the `governgate-impact` bridge job, and still matches the live MR head. The bridge forwards no variables or credentials. This handoff is proposed in GovernGate MR !3 and is not in the local `main` snapshot yet. Review the GovernGate README for the current activation requirements.
+Only the protected controller needs the GitLab API credential. GovernGate MR !3 adds checks that the upstream pipeline belongs to the SDK project, came from a detached merge-request pipeline, points to the expected MR ref, was started by the `governgate-impact` bridge job, and still matches the live MR head. Its pipeline passed, but the change is not merged and is absent from this GitLab `main` snapshot. Review the GovernGate README and implementation guide for the current activation requirements.
 
 ## GitLab integration status
 
