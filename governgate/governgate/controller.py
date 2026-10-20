@@ -281,7 +281,10 @@ def main(argv=None):
         lines.append("Verification unavailable: " + record["error_type"])
     Path("governgate-report.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
-    return 0 if record["verdict"] == "READY_FOR_APPROVAL" else 1
+    # A complete passing run is not an automatic approval: the next CI job is
+    # a blocking manual review. All blocked or incomplete outcomes still fail
+    # this job and cannot reach that approval step.
+    return 0 if record["verdict"] in {"READY_FOR_APPROVAL", "REQUIRES_MANUAL_REVIEW"} else 1
 
 
 if __name__ == "__main__":
