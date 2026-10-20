@@ -12,28 +12,22 @@ live pipeline results, and operator steps are documented in the monorepo
 
 ## Live status — October 19, 2026
 
-The trusted controller ran in
-[pipeline 2961370304](https://gitlab.com/governgate2/governgate/-/pipelines/2961370304),
-job [17302552421](https://gitlab.com/governgate2/governgate/-/jobs/17302552421),
-from protected controller main commit
-`866ed176c4551ecafd6658e0d745a272f9696e82`. It resolved SDK bridge MR
-[!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2) and
-verified four consumer runs: Billing baseline/candidate PASS and Notification
-baseline/candidate PASS. The policy returned `REQUIRES_MANUAL_REVIEW`; the
-pipeline failed because the deployed CI does not yet include a required
-manual approval job.
+The trusted controller and credential-free manual evidence-review job are on
+GovernGate `main`; MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
+is merged. The latest protected run is
+[pipeline 2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448)
+on commit `6f543ed7264c8fe5419de9e6e623a8ce18661bad`. It resolved the
+intentionally breaking SDK MR !1. Billing baseline passed and candidate
+failed; Notification baseline and candidate passed. GovernGate returned
+`BLOCKED` as designed, so manual review was skipped. The positive path still
+needs a safe candidate run where all consumers pass, a human inspects the
+evidence, and the manual job is started.
 
-The local feature branch adds a credential-free manual evidence-review job.
-It checks the ledger digest, pinned SDK and consumer commits, worker image
-identity, and complete all-pass matrix. The job has no API-token environment.
-GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
-contains this implementation, tests, and refreshed docs. Its latest branch
-pipeline [2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
-passed unit tests, sandbox smoke, SAST, and secret detection. Review and merge
-are still required before the live bridge can use it, and the protected manual
-job still needs an end-to-end run. Its SHA-256 digest is not an independent
-signature; a human must inspect the controller artifacts. Candidate test
-output remains untrusted.
+The manual job checks the ledger digest, pinned SDK and consumer commits,
+worker image identity, and complete all-pass matrix. It has no API-token
+environment. The SHA-256 digest detects changes but is not an independent
+signature; candidate test output remains untrusted, so the reviewer must
+inspect the controller artifacts.
 
 ## Trust and execution boundaries
 

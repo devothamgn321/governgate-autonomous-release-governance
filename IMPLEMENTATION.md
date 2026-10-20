@@ -21,7 +21,7 @@ the existing SDK CI flow; Duo does not decide the gate.
 SDK merge request
   ├─ six existing test/security/scan/build jobs
   ├─ GitLab Duo impact analysis (advisory)
-  └─ credential-free multi-project bridge (proposed MR !2)
+  └─ credential-free multi-project bridge (merged SDK MR !2)
        │ no forwarded variables, personal PAT, or provider key
        ▼
 Protected GovernGate controller pipeline
@@ -34,7 +34,7 @@ Protected GovernGate controller pipeline
        ▼
 Evidence ledger + deterministic policy + report
   ├─ BLOCKED / INCOMPLETE / SUPERSEDED → pipeline fails closed
-  └─ REQUIRES_MANUAL_REVIEW → required reviewer action (implementation in review)
+  └─ REQUIRES_MANUAL_REVIEW → required reviewer action (merged GovernGate MR !5)
        ▼
 Mirrored SDK pipeline result; never an automatic merge
 ```
@@ -69,21 +69,20 @@ must fail the mirrored pipeline. A passing candidate is
 reports from inside the test process. It must never be represented as an
 automatic approval or merge.
 
-The live October 19 controller run completed all four pinned consumer runs as
-`PASS`, recorded `REQUIRES_MANUAL_REVIEW`, and then failed the downstream
-pipeline because the deployed CI had no explicit manual review job. The
 GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
-adds a required manual job after the trusted controller. Its validator checks
+is merged. Its required manual job follows the trusted controller. Its validator checks
 the evidence ledger digest, expected SDK and consumer identities, worker image
 identity, and complete all-pass matrix. The job has no protected environment
 or API variable, so the controller token is not exposed to the reviewer job.
 The reviewer must inspect the evidence artifact and start the manual job;
 failures and incomplete evidence never reach that step. The latest MR branch
 pipeline, [2965673943](https://gitlab.com/governgate2/governgate/-/pipelines/2965673943),
-passed unit tests, sandbox smoke, SAST, and secret detection on commit
-`62df3477665ce1fc3ff7bbc505a468e8a62785e7`. The manual job has not yet run in
-a protected end-to-end pipeline; MR review and merge are still required
-before deployment.
+passed unit tests, sandbox smoke, SAST, and secret detection on its feature
+branch. The latest live protected run was
+[2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448)
+for the intentionally breaking SDK MR !1. Billing failed on the candidate,
+so the controller correctly returned `BLOCKED` and skipped manual review.
+The passing-candidate path still needs an end-to-end run on current `main`.
 
 The ledger uses a canonical SHA-256 digest. HMAC signing is optional in the
 engine. The manual review job does not receive a signing key, and the current
@@ -97,7 +96,7 @@ would strengthen this boundary and remains future work.
 | Project | Responsibility |
 | --- | --- |
 | [GovernGate](https://gitlab.com/governgate2/governgate) | Trusted controller, GitLab identity/source checks, worker image, evidence ledger, policy, reports, and gate CI |
-| [core-auth-sdk](https://gitlab.com/governgate2/core-auth-sdk) | Shared token library, existing six-job security pipeline, Duo flow, and proposed credential-free bridge |
+| [core-auth-sdk](https://gitlab.com/governgate2/core-auth-sdk) | Shared token library, existing six-job security pipeline, Duo flow, and merged credential-free bridge |
 | [billing-service](https://gitlab.com/governgate2/billing-service) | Downstream authorization consumer |
 | [notification-service](https://gitlab.com/governgate2/notification-service) | Control consumer for SDK changes that should not affect verification |
 
@@ -108,24 +107,22 @@ pipeline.
 
 ## Verified GitLab execution
 
-On October 19, 2026, the authenticated GitLab UI retried the downstream
-pipeline for SDK bridge MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2),
-source commit `9ef8ca0b3b3078e99e1249b9fe3f332255e4f303`. GovernGate pipeline
-[2961370304](https://gitlab.com/governgate2/governgate/-/pipelines/2961370304)
-ran on controller main `866ed176c4551ecafd6658e0d745a272f9696e82`; protected
-job [17302552421](https://gitlab.com/governgate2/governgate/-/jobs/17302552421)
-resolved SDK MR !2 and produced this matrix:
+On October 19, 2026, the authenticated GitLab UI ran the intentionally
+breaking SDK MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1)
+through the merged controller. GovernGate pipeline
+[2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448)
+ran on controller main `6f543ed7264c8fe5419de9e6e623a8ce18661bad` and
+produced this matrix:
 
 | Consumer | SDK baseline | SDK candidate |
 | --- | --- | --- |
-| Billing | PASS | PASS |
+| Billing | PASS | FAIL |
 | Notification | PASS | PASS |
 
-The verdict was `REQUIRES_MANUAL_REVIEW`. That job exited nonzero, so the
-downstream pipeline failed and the SDK bridge remains blocked. This verifies
-the live API-backed source resolution and four-run consumer matrix; it does
-not demonstrate the proposed manual job because that code is still on the
-GovernGate feature branch and is not deployed to GitLab `main`.
+The verdict was `BLOCKED`, as expected for a breaking change; manual review was
+skipped. This verifies live API-backed source resolution, source identity
+checks, and the blocking consumer-failure path. The successful all-pass path
+through human review still needs end-to-end verification.
 
 SDK MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1)
 is the deliberately breaking demonstration change and must remain unmerged.
@@ -134,12 +131,28 @@ passed the SDK jobs; MR pipeline [2965596233](https://gitlab.com/governgate2/cor
 failed at the downstream gate as designed. GitLab showed unresolved conflicts
 and review threads. Do not merge this demonstration MR into SDK `main`.
 
-The SDK bridge MR !2 is still a draft. Its description should be refreshed
-after the manual-review change passes its own CI. GovernGate resolver MR !3
-was merged at `866ed176c4551ecafd6658e0d745a272f9696e82`; its pipeline
-[2961361082](https://gitlab.com/governgate2/governgate/-/pipelines/2961361082)
-passed. The existing six SDK jobs and Duo flow remain intact. Nebius is
-optional and disabled pending API approval.
+The SDK bridge MR !2 is merged. SDK main pipeline
+[2965757890](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965757890)
+passed all six existing security, test, and build jobs. The existing Duo flow
+is preserved. Nebius is optional and disabled pending API approval.
+
+## Current live repository status
+
+| Repository | Current main commit | Latest verified main pipeline |
+| --- | --- | --- |
+| GovernGate | `6f543ed7264c8fe5419de9e6e623a8ce18661bad` | [2965721808](https://gitlab.com/governgate2/governgate/-/pipelines/2965721808) |
+| core-auth-sdk | `bac25944d996acafd3a6fa3e4d2833164f3aaa3f` | [2965757890](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965757890) |
+| billing-service | `1c9cba0941a7e5c964177863defc4174710622d4` | [2961157136](https://gitlab.com/governgate2/billing-service/-/pipelines/2961157136) |
+| notification-service | `676cbdc7811cdf0af3490ebd6897b692e6ad7368` | [2961156991](https://gitlab.com/governgate2/notification-service/-/pipelines/2961156991) |
+
+Open GitLab changes at this check: SDK breaking demo MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1),
+SDK documentation MR [!5](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/5),
+Draft SDK preparation MR [!3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3),
+Billing documentation MR [!2](https://gitlab.com/governgate2/billing-service/-/merge_requests/2),
+and Notification documentation MR [!2](https://gitlab.com/governgate2/notification-service/-/merge_requests/2).
+The docs MRs show unresolved review threads; SDK MR !3 has a failed pipeline
+and targets a feature branch. GovernGate has no open MRs. Do not merge the
+breaking SDK MR !1; confirm whether the preparation MR !3 is still needed.
 
 ## Local setup and validation
 
@@ -168,21 +181,23 @@ by the actual project history and hackathon rules; do not claim eligibility
 without that evidence. Nebius is not required for the core demo and should
 remain disabled until approved access exists.
 
-Implementation still requiring review/deployment:
+Implementation still to verify:
 
-1. Publish the manual evidence-review gate on a GovernGate feature branch and
-   run its GitLab MR pipeline.
-2. Review and merge the GovernGate workflow change, then rerun SDK bridge MR
-   !2 and verify the manual job is blocking, has no credentials, and succeeds
-   only after a human reviews the passing evidence.
-3. Refresh SDK bridge MR !2's description and verify its mirrored pipeline
-   reports the manual-review state accurately.
-4. Keep the breaking SDK MR !1 unmerged. Demonstrate its expected blocked
-   result in the submission evidence.
-5. Decide the GitLab project visibility needed by Devpost and verify the
-   hackathon's start-date path from project history.
-6. Add independent evidence signing or a trusted test-result channel only if
-   time permits; do not imply the current unkeyed digest proves authenticity.
+1. Run a safe SDK MR through current `main`; verify all four consumer runs
+   pass, inspect the artifacts, start the blocking manual job, and confirm the
+   result is reflected in the SDK pipeline.
+2. Resolve the open documentation-MR review threads and update their status
+   text. Confirm whether the failed, feature-targeted SDK MR !3 is necessary.
+3. Keep the breaking SDK MR !1 unmerged and record its expected `BLOCKED`
+   outcome as the negative test.
+4. Update the GitHub monorepo snapshots after approved GitLab source changes.
+   The checked-in source directories are dated snapshots; see
+   `SOURCE_REVISIONS.md`.
+5. Treat independent evidence signing as future hardening. The current
+   unkeyed digest does not prove authenticity, so a human must inspect the
+   trusted-controller artifacts.
+6. Resolve hackathon visibility, eligibility, and submission fields as a
+   separate submission task; they are not established by these code tests.
 
 The contemporaneous action-by-action record is
 [`reports/implementation-checkpoints.md`](reports/implementation-checkpoints.md).

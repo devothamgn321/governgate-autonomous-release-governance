@@ -1,6 +1,6 @@
 # GitLab snapshot revisions
 
-The monorepo subdirectories were created from these GitLab `main` commits on October 18, 2026. Repository histories were not rewritten or combined; this file preserves the source identity for each snapshot.
+The monorepo subdirectories were created from these GitLab `main` commits on October 18, 2026. Repository histories were not rewritten or combined; this file preserves the source identity for each snapshot. These are historical snapshot revisions, not a claim that the directories are byte-for-byte current with GitLab `main`; the latest live main commits and pipeline links are recorded in `IMPLEMENTATION.md`.
 
 | Project | GitLab repository | Source commit |
 | --- | --- | --- |

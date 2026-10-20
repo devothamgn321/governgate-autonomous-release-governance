@@ -19,24 +19,33 @@ boundaries, setup, and current live evidence are in
   [core-auth-sdk](https://gitlab.com/governgate2/core-auth-sdk),
   [billing-service](https://gitlab.com/governgate2/billing-service), and
   [notification-service](https://gitlab.com/governgate2/notification-service).
-- The protected controller successfully resolved SDK MR !2 and ran Billing
-  and Notification against both baseline and candidate commits. All four
-  consumer runs passed in [GovernGate pipeline 2961370304](https://gitlab.com/governgate2/governgate/-/pipelines/2961370304),
-  job [17302552421](https://gitlab.com/governgate2/governgate/-/jobs/17302552421).
-- The controller returned `REQUIRES_MANUAL_REVIEW`. That run failed its
-  mirrored pipeline because deployed CI had no required manual approval job.
-  GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
-  now proposes the blocking manual stage, evidence validator, tests, and
-  updated docs on branch `feature/manual-evidence-review`. Latest GitLab MR
-  pipeline [2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
-  passed unit tests, sandbox smoke, SAST, and secret detection. The protected
-  manual job remains unverified end to end and is not on `main`.
-- The deliberately breaking SDK demonstration MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1)
-  remains unmerged. Its SDK jobs passed and the downstream gate blocked it as
-  expected; GitLab also reports conflicts and unresolved review threads.
-- The reusable SDK bridge MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2)
-  remains a draft. Its current downstream run has now completed the consumer
-  matrix, but awaits the manual-review workflow fix.
+- The trusted controller and blocking manual evidence-review stage are on
+  GovernGate `main`; GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
+  is merged. The credential-free SDK bridge is on SDK `main`; SDK MR
+  [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2) is
+  merged.
+- The latest live breaking-change run is
+  [GovernGate pipeline 2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448),
+  on controller commit `6f543ed7264c8fe5419de9e6e623a8ce18661bad`. Billing
+  passed with the baseline SDK and failed with the candidate; Notification
+  passed both. GovernGate correctly returned `BLOCKED`; manual review was
+  skipped because a consumer failed.
+- The six-job SDK security, test, and build pipeline passed on SDK main in
+  [pipeline 2965757890](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965757890).
+- The passing-candidate path still needs a fresh run: both consumers must
+  pass, a reviewer must inspect the evidence and start the blocking manual
+  job, and the SDK pipeline must show the resulting status.
+- SDK MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1)
+  remains an intentionally breaking, unmerged demo. Its latest pipeline
+  [2965776106](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965776106)
+  failed at the downstream gate as designed. It also has conflicts and
+  unresolved review threads; do not merge it into SDK `main`.
+- Other open changes are SDK docs MR [!5](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/5),
+  Draft SDK prep MR [!3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3),
+  Billing docs MR [!2](https://gitlab.com/governgate2/billing-service/-/merge_requests/2),
+  and Notification docs MR [!2](https://gitlab.com/governgate2/notification-service/-/merge_requests/2).
+  The docs MRs have unresolved review threads; MR !3 is failed and targets a
+  feature branch, so confirm whether it is still needed.
 - The existing six-job SDK security pipeline and Duo impact-analysis flow are
   preserved. Nebius remains optional and disabled.
 

@@ -215,3 +215,54 @@ This log records actions in the current continuation. Synced files under
   confirm the downstream result is mirrored. Keep breaking SDK MR !1
   unmerged until its conflicts and review are resolved. Finish Devpost rules,
   eligibility, and remaining fields only after recording a verified demo.
+
+## Checkpoint 12 — current GitLab state and end-to-end readiness
+
+Read-only refresh on October 19, 2026, before publishing this checkpoint to
+the existing GitHub pull request. The authenticated GitLab UI and latest
+pipeline/job logs were used as live evidence; standalone local GitLab clone
+refs were not used as current source because they are stale.
+
+- GovernGate MR !5 (manual evidence-review stage) and SDK MR !2 (credential-
+  free bridge) are merged. Current main commits and the latest verified main
+  pipelines are listed in `IMPLEMENTATION.md`.
+- Fresh GovernGate pipeline
+  [2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448)
+  ran trusted controller commit `6f543ed7264c8fe5419de9e6e623a8ce18661bad`
+  against SDK MR !1. Billing baseline PASS / candidate FAIL; Notification
+  baseline PASS / candidate PASS. The result was `BLOCKED`; artifacts were
+  uploaded, and manual review was skipped because a consumer candidate
+  failed. This is the expected negative demonstration, not a passing run.
+- SDK MR !1 pipeline
+  [2965776106](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965776106)
+  failed at the downstream gate as expected. The MR is not mergeable
+  automatically and has six unresolved review threads. Keep it unmerged.
+- SDK main pipeline
+  [2965757890](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965757890)
+  passed the six existing SDK security, test, and build jobs.
+- Current open GitLab MRs: SDK docs !5 (pipeline 2961278340 passed, 1/1
+  review thread unresolved); SDK Draft prep !3 (pipeline 2953512581 failed,
+  target is `feature/explicit-algorithm`); Billing docs !2 (pipeline
+  2961277951 passed, 2/2 threads unresolved); Notification docs !2 (pipeline
+  2961277961 passed, 2/2 threads unresolved). GovernGate has no open MRs.
+  Confirm whether SDK !3 is still needed because current SDK !1 already
+  reaches the live gate.
+- GitHub monorepo PR [#2](https://github.com/devothamgn321/governgate-autonomous-release-governance/pull/2)
+  is open on `feature/explicit-manual-review`. Its verified prior head was
+  `3509832be081b7e450cb19a28b5709559198ccb3`; GitHub showed 2/2 checks
+  passing and no merge conflicts. Its PR description and repository status
+  text were stale because they still described GovernGate MR !5 and SDK bridge
+  MR !2 as pending. They are refreshed in this checkpoint before publication.
+- The remaining end-to-end proof is the positive path: run a safe SDK MR;
+  verify both consumers pass baseline and candidate; inspect the evidence;
+  start the credential-free blocking manual job; verify it succeeds only
+  after human review; then confirm the final SDK pipeline status. The latest
+  run exercised only the expected blocked path.
+- The integrated local suite previously passed 104 tests (SDK 11, Billing 5,
+  Notification 3, GovernGate 85). No application code changes are part of
+  this documentation refresh; run the suite and `git diff --check` before
+  pushing.
+- Nebius remains optional and disabled. The unkeyed SHA-256 evidence digest
+  is not independent authenticity proof. GitHub project directories are
+  dated snapshots; exact snapshot SHAs are in `SOURCE_REVISIONS.md`, with
+  current live GitLab `main` SHAs recorded separately in `IMPLEMENTATION.md`.
