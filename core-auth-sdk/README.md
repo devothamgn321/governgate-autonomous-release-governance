@@ -26,22 +26,20 @@ affect billing. Notification calls only `issue_token`; it is the control
 consumer for verifier-only changes. See the [GovernGate architecture and
 runbook](https://gitlab.com/governgate2/governgate/-/blob/main/README.md).
 
-The engine has been merged to `governgate2/governgate/main`. The proposed
-credential-free SDK bridge is tracked in
-[MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2).
-Until both merge requests are reviewed and the protected controller is
-provisioned, the SDK pipeline does not provide a verified live GovernGate
-result. The current bridge proposal forwards no variables or credentials. The
-paired GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3)
-resolves the SDK MR and exact head SHA from GitLab's upstream pipeline and
-bridge-job metadata. Commit `f97389a5d905ab85498df6b6a9282ba030175b46` passed
-GovernGate pipeline [2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877).
-The trigger-job API endpoint and its downstream relationship have been
-verified against a real GitLab pipeline response; a live run using the updated
-resolver is still needed. The controller must not receive an API token or
-Nebius key through the SDK bridge. The bridge result is mirrored into the SDK
-pipeline after the existing tests, scans, and wheel build. The separate demo preparation change is
-[MR !3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3).
+The protected GovernGate controller and the credential-free SDK bridge are
+merged to their GitLab `main` branches (GovernGate MR !5 and SDK MR !2). A live
+breaking-change run resolved SDK MR
+[!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1) and
+blocked it because Billing passed with the baseline SDK but failed with the
+candidate; Notification passed both. See GovernGate pipeline
+[2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448).
+This verifies the negative path. The positive path still needs a safe SDK
+change to pass both consumers, a human evidence review, and a successful
+mirrored SDK result. The bridge forwards no variables or credentials; never
+pass a personal PAT or Nebius key through it. A separate SDK preparation MR
+[!3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3) remains
+open as a Draft with a failed pipeline and targets the feature branch; confirm
+whether it is still needed.
 
 ## Pipeline and merge workflow
 

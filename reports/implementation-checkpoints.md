@@ -266,3 +266,23 @@ refs were not used as current source because they are stale.
   is not independent authenticity proof. GitHub project directories are
   dated snapshots; exact snapshot SHAs are in `SOURCE_REVISIONS.md`, with
   current live GitLab `main` SHAs recorded separately in `IMPLEMENTATION.md`.
+
+## Checkpoint 13 — GitHub publication
+
+- Refreshed the root README, GovernGate README, SDK README, both consumer
+  READMEs, the architecture/runbook, source-snapshot note, and execution log
+  to remove stale claims that merged bridge/review work is pending.
+- Committed and pushed the first refresh to the existing GitHub PR branch as
+  `918bfa7cb169633c82a4e656fbe60b25bd8ecdcb`. GitHub showed both checks
+  passing for that commit.
+- Replaced the PR description with the current architecture, verified
+  positive/negative evidence, test results, and remaining all-pass manual
+  review checkpoint. The GitHub connector could not edit PR metadata, so the
+  description was saved through the authenticated PR page and confirmed as
+  rendered text.
+- After updating all three project-level READMEs, reran
+  `./scripts/test-all.sh`: SDK 11, Billing 5, Notification 3, GovernGate 85
+  passed (104 total). `git diff --check` passed.
+- This README and runbook refresh is included with the current GitHub PR
+  branch. Keep the PR open for review; no branch was merged. The live
+  positive-path end-to-end run is still outstanding and must occur in GitLab.
