@@ -100,17 +100,24 @@ This log records actions in the current continuation. Synced files under
   asserted the manual job is blocking and has no environment/API token. Passed.
 - `git diff --check`: passed.
 
-## Checkpoint 7 — publication status and next actions
+## Checkpoint 7 — publication status
 
-- Working tree changes are prepared on local GitHub monorepo branch
+- The change is committed on GitHub monorepo branch
   `feature/explicit-manual-review`, based on fetched `origin/main` commit
-  `359c4ce`. At the time of this log, no commit, push, GitHub PR, or GitLab MR
-  has been created for these new changes.
+  `359c4ce`. Commit `8e3f49196c8748ac4c86d874b3f8dad3993069d6` was pushed.
+- GitHub PR [#2](https://github.com/devothamgn321/governgate-autonomous-release-governance/pull/2)
+  is open for review. GitHub reports its single Actions check passed and no
+  merge conflicts. It has not been merged.
 - GitLab CLI fetch remains unavailable because the shell has no configured
   GitLab credentials. The authenticated GitLab browser was sufficient to
-  inspect and retry the existing pipeline, but is not yet used to publish the
-  new branch.
-- Next: publish the proposed changes on a GovernGate feature branch, run its
-  GitLab MR pipeline, review and merge only after review, then rerun SDK bridge
-  MR !2 and verify the blocking manual job and mirrored SDK result. Keep SDK
-  MR !1 unmerged.
+  inspect and retry the existing pipeline, but the new implementation has not
+  yet been published to the GovernGate GitLab repository.
+
+## Checkpoint 8 — next actions
+
+- Publish the proposed controller and CI changes on a GovernGate GitLab
+  feature branch, run its GitLab MR pipeline, and open an MR. Keep all changes
+  off `main` until reviewed.
+- After the GovernGate change passes review and is merged, rerun SDK bridge MR
+  !2 and verify the blocking manual job and mirrored SDK result. Keep SDK MR
+  !1 unmerged.
