@@ -200,11 +200,11 @@ This log records actions in the current continuation. Synced files under
 - Rechecked public GitHub PR
   [#2](https://github.com/devothamgn321/governgate-autonomous-release-governance/pull/2):
   it remains open, has two successful checks, and is not merged. Latest branch
-  commit is `0d0cc13b5fdac744677cf674a3f48bf64c753c3b`. Both Actions checks
-  passed on that commit: [pull_request test](https://github.com/devothamgn321/governgate-autonomous-release-governance/actions/runs/39355131986/job/118408060059)
-  and [push test](https://github.com/devothamgn321/governgate-autonomous-release-governance/actions/runs/39355128341/job/118408049603).
-  GitHub reports no merge conflicts. The separate local integrated test run
-  passed 104 tests; it is not a substitute for the current Actions checks.
+  verified commit is `3eb431a89436c436754b079eb5ee219d12df3309`. Both Actions
+  checks passed on that commit: [pull_request test](https://github.com/devothamgn321/governgate-autonomous-release-governance/actions/runs/39355208002/job/118408289114)
+  and [push test](https://github.com/devothamgn321/governgate-autonomous-release-governance/actions/runs/39355202398/job/118408272857).
+  GitHub reports no merge conflicts. The local integrated test run separately
+  passed 104 tests (SDK 11, Billing 5, Notification 3, GovernGate 85).
 - Refreshed the monorepo implementation guide to point to the latest passing
   GitLab pipeline. The previous pipeline `2965669878` also passed on the
   validator-fix commit; the newer documentation commit pipeline is the current
