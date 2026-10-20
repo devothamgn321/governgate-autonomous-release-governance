@@ -23,11 +23,14 @@ boundaries, setup, and current live evidence are in
   and Notification against both baseline and candidate commits. All four
   consumer runs passed in [GovernGate pipeline 2961370304](https://gitlab.com/governgate2/governgate/-/pipelines/2961370304),
   job [17302552421](https://gitlab.com/governgate2/governgate/-/jobs/17302552421).
-- The controller returned `REQUIRES_MANUAL_REVIEW`. That run still failed its
-  mirrored pipeline because the deployed CI has no required manual approval
-  job yet. The feature branch in this repository adds that job and validates
-  the evidence artifact; it is not live until its GitLab MR passes and is
-  reviewed/merged.
+- The controller returned `REQUIRES_MANUAL_REVIEW`. That run failed its
+  mirrored pipeline because deployed CI had no required manual approval job.
+  GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
+  now proposes the blocking manual stage, evidence validator, tests, and
+  updated docs on branch `feature/manual-evidence-review`. Latest GitLab MR
+  pipeline [2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
+  passed unit tests, sandbox smoke, SAST, and secret detection. The protected
+  manual job remains unverified end to end and is not on `main`.
 - The deliberately breaking SDK demonstration MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1)
   remains unmerged. Its SDK jobs passed and the downstream gate blocked it as
   expected; GitLab also reports conflicts and unresolved review threads.

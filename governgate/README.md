@@ -26,9 +26,14 @@ manual approval job.
 The local feature branch adds a credential-free manual evidence-review job.
 It checks the ledger digest, pinned SDK and consumer commits, worker image
 identity, and complete all-pass matrix. The job has no API-token environment.
-It still requires GitLab CI, review, and deployment before the live bridge can
-use it. Its SHA-256 digest is not an independent signature; a human must
-inspect the controller artifacts. Candidate test output remains untrusted.
+GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
+contains this implementation, tests, and refreshed docs. Its latest branch
+pipeline [2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
+passed unit tests, sandbox smoke, SAST, and secret detection. Review and merge
+are still required before the live bridge can use it, and the protected manual
+job still needs an end-to-end run. Its SHA-256 digest is not an independent
+signature; a human must inspect the controller artifacts. Candidate test
+output remains untrusted.
 
 ## Trust and execution boundaries
 

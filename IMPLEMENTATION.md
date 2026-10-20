@@ -72,14 +72,17 @@ automatic approval or merge.
 The live October 19 controller run completed all four pinned consumer runs as
 `PASS`, recorded `REQUIRES_MANUAL_REVIEW`, and then failed the downstream
 pipeline because the deployed CI had no explicit manual review job. The
-feature branch adds a required manual job after the trusted controller. It
-validates the evidence ledger's digest, expected SDK and consumer identities,
-worker image identity, and complete all-pass matrix. It has no protected
-environment or API variable, so the controller token is not exposed to the
-review job. The reviewer must inspect the evidence artifact and start the
-manual job; failures and incomplete evidence never reach that step. This
-workflow change still needs a GitLab feature-branch pipeline and review before
-it is live.
+GovernGate MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
+adds a required manual job after the trusted controller. Its validator checks
+the evidence ledger digest, expected SDK and consumer identities, worker image
+identity, and complete all-pass matrix. The job has no protected environment
+or API variable, so the controller token is not exposed to the reviewer job.
+The reviewer must inspect the evidence artifact and start the manual job;
+failures and incomplete evidence never reach that step. The MR branch pipeline
+[2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
+passed unit tests, sandbox smoke, SAST, and secret detection. The manual job
+has not yet run in a protected end-to-end pipeline; MR review and merge are
+still required before deployment.
 
 The ledger uses a canonical SHA-256 digest. HMAC signing is optional in the
 engine. The manual review job does not receive a signing key, and the current
@@ -120,8 +123,8 @@ resolved SDK MR !2 and produced this matrix:
 The verdict was `REQUIRES_MANUAL_REVIEW`. That job exited nonzero, so the
 downstream pipeline failed and the SDK bridge remains blocked. This verifies
 the live API-backed source resolution and four-run consumer matrix; it does
-not demonstrate the proposed manual job because that code has not yet been
-deployed to GitLab.
+not demonstrate the proposed manual job because that code is still on the
+GovernGate feature branch and is not deployed to GitLab `main`.
 
 SDK MR [!1](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/1)
 is the deliberately breaking demonstration change and must remain unmerged.

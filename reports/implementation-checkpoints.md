@@ -113,11 +113,72 @@ This log records actions in the current continuation. Synced files under
   inspect and retry the existing pipeline, but the new implementation has not
   yet been published to the GovernGate GitLab repository.
 
-## Checkpoint 8 — next actions
+## Checkpoint 8 — GitLab feature branch and MR opened
 
-- Publish the proposed controller and CI changes on a GovernGate GitLab
-  feature branch, run its GitLab MR pipeline, and open an MR. Keep all changes
-  off `main` until reviewed.
-- After the GovernGate change passes review and is merged, rerun SDK bridge MR
-  !2 and verify the blocking manual job and mirrored SDK result. Keep SDK MR
-  !1 unmerged.
+- Published the manual evidence-review implementation to GitLab branch
+  `feature/manual-evidence-review` and opened GovernGate MR
+  [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5). It
+  remains open and unmerged.
+- Added the `review` stage and blocking `manual-evidence-review` job to
+  `.gitlab-ci.yml`. The job consumes only the `trusted-controller` artifact,
+  uses `when: manual` and `allow_failure: false`, has no environment (so it
+  does not inherit the controller environment token), and is limited to
+  protected `main` downstream pipelines.
+- Added `governgate/manual_review.py` and tests for complete evidence,
+  incomplete/failing/tampered evidence, controller exit behavior, and the
+  CI credential boundary. Updated the GitLab README and implementation guide
+  with the actual architecture, live run, security boundaries, and remaining
+  steps. The six-job SDK pipeline and Duo flow were not changed.
+- GitLab feature branch commits:
+  `55bb5c5dfa7015840d7a138a81e3d195e5716c2b` (CI stage),
+  `5fad6d6a5ea2adb268df255757c75c63a822a7a3` (validator),
+  `b4ac41134fe8690530c0cf14be446c465bbadfca` (controller exit behavior),
+  `5ccc4d56127e8414dfa05aab0de4f5388f1b3b7e` (tests),
+  `bb85ef7d5042463e12574e44c44882204ea0d8a7` and
+  `062902a00a921791cc4b766c4eada584bfc32f70` (README correction),
+  `819eebe311874c56249e63936cfa2d03944eb7af` (GitLab multi-document YAML
+  parsing in tests), `22e03bfc1e89ca950314eb65ca13f6e9fe82f60b`
+  (implementation guide), and
+  `ec6e83d9f5586c3a18d85bbc11e89ac91713e13a` (validator indentation and
+  input validation).
+
+## Checkpoint 9 — GitLab CI failures corrected and latest pipeline passed
+
+- Early pipelines failed in `unit-tests` because the browser editor inserted
+  malformed indentation in the validator, and the CI file uses multiple YAML
+  documents. Corrected the validator source and changed the test to parse the
+  GitLab CI job document with `yaml.safe_load_all`.
+- Latest MR pipeline
+  [2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
+  passed on commit `ec6e83d9f5586c3a18d85bbc11e89ac91713e13a`. Verified jobs:
+  `unit-tests` [17302818836](https://gitlab.com/governgate2/governgate/-/jobs/17302818836),
+  `sandbox-smoke` [17302818837](https://gitlab.com/governgate2/governgate/-/jobs/17302818837),
+  `secret_detection` [17302818835](https://gitlab.com/governgate2/governgate/-/jobs/17302818835),
+  and `semgrep-sast` [17302818834](https://gitlab.com/governgate2/governgate/-/jobs/17302818834)
+  all passed.
+- The manual job is intentionally absent from this merge-request pipeline:
+  its rule permits only protected `main` pipelines triggered by the SDK
+  bridge. The branch test verifies its blocking setting and artifact/secret
+  boundary. The protected manual job has not yet run end to end.
+- GitLab MR !5 is still awaiting human review. No main branch was changed and
+  no MR was merged.
+
+## Checkpoint 10 — current handoff
+
+- The public GitHub monorepo PR [#2](https://github.com/devothamgn321/governgate-autonomous-release-governance/pull/2)
+  remains open and unmerged. Its feature branch has the implementation and
+  integrated docs; the integrated test suite passed 104 tests (SDK 11,
+  Billing 5, Notification 3, GovernGate 85). Check the latest GitHub Actions
+  status before claiming it is green.
+- Updated the monorepo root README, GovernGate README, and implementation
+  guide to link MR !5 and the passing GitLab branch pipeline.
+- Remaining implementation: obtain review and merge GovernGate MR !5, then
+  rerun SDK bridge MR !2 through the protected controller, inspect the
+  evidence, start the blocking manual job, and confirm the mirrored SDK
+  pipeline result. Keep SDK MR !1 unmerged until its conflicts/reviews are
+  resolved.
+- Remaining submission work: verify the official hackathon eligibility and
+  rules, complete the remaining Devpost fields, and submit. The earlier
+  screenshot showed Draft with 2 of 5 steps complete; verify current status.
+  Nebius remains disabled pending approved access. The unkeyed digest is not
+  independent evidence signing.
