@@ -2,7 +2,7 @@ include:
   - template: Jobs/SAST.gitlab-ci.yml
   - template: Jobs/Secret-Detection.gitlab-ci.yml
 
-stages: [test, verify]
+stages: [test, verify, review]
 variables:
   AST_ENABLE_MR_PIPELINES: "true"
 workflow:
@@ -54,6 +54,22 @@ trusted-controller:
       - governgate-evidence.json
       - governgate-report.md
     expire_in: 90 days
+
+# A passing candidate never merges automatically. The reviewer sees the
+# controller's evidence artifacts before starting this credential-free job.
+# Failed or incomplete controller runs never reach this stage.
+manual-evidence-review:
+  stage: review
+  image: python:3.12
+  needs:
+    - job: trusted-controller
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true" && $CI_PIPELINE_SOURCE == "pipeline"'
+      when: manual
+      allow_failure: false
+  script:
+    - python -m governgate.manual_review --evidence governgate-evidence.json
 
 sandbox-smoke:
   stage: test

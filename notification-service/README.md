@@ -21,11 +21,13 @@ For one SDK merge request, GovernGate runs this same pinned consumer commit
 against both the current SDK baseline and the exact candidate SDK source. The
 notification baseline should pass; the candidate should continue to pass
 when a change only affects `verify_token`. Results are compared with the
-affected `billing-service`, which calls the verifier. The engine is merged,
-but the SDK bridge and protected controller activation are still pending, so
-no live API-backed notification run is claimed. Read the
-[GovernGate architecture and activation runbook](https://gitlab.com/governgate2/governgate/-/blob/main/README.md)
-and SDK bridge [MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2).
+affected `billing-service`, which calls the verifier. In protected
+[GovernGate pipeline 2965778448](https://gitlab.com/governgate2/governgate/-/pipelines/2965778448),
+Notification baseline and candidate both passed while the intentionally
+breaking SDK MR !1 failed Billing's candidate run. The gate correctly
+returned `BLOCKED`. The SDK bridge and manual evidence-review stage are
+merged; the all-pass candidate path still needs human evidence review. Read
+the [GovernGate architecture and runbook](https://gitlab.com/governgate2/governgate/-/blob/main/README.md).
 
 ## Local development
 

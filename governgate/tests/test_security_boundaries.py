@@ -115,6 +115,13 @@ def test_bridge_forwards_no_variables_or_credentials():
     config = yaml.safe_load((root / '.gitlab-ci.yml').read_text())
     assert config['trusted-controller']['environment']['name'] == 'governgate-controller'
     assert 'inputs' not in bridge['trigger']
+    review = config['manual-evidence-review']
+    assert review['needs'] == [{'job': 'trusted-controller', 'artifacts': True}]
+    assert review['rules'][0]['when'] == 'manual'
+    assert review['rules'][0]['allow_failure'] is False
+    assert 'environment' not in review
+    assert 'GOVERNGATE_API_TOKEN' not in str(review)
+    assert 'GOVERNGATE_SIGNING_KEY' not in str(review)
 
 
 def test_worker_receives_no_host_credentials(monkeypatch):
