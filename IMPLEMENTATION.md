@@ -78,11 +78,12 @@ the evidence ledger digest, expected SDK and consumer identities, worker image
 identity, and complete all-pass matrix. The job has no protected environment
 or API variable, so the controller token is not exposed to the reviewer job.
 The reviewer must inspect the evidence artifact and start the manual job;
-failures and incomplete evidence never reach that step. The MR branch pipeline
-[2965669878](https://gitlab.com/governgate2/governgate/-/pipelines/2965669878)
-passed unit tests, sandbox smoke, SAST, and secret detection. The manual job
-has not yet run in a protected end-to-end pipeline; MR review and merge are
-still required before deployment.
+failures and incomplete evidence never reach that step. The latest MR branch
+pipeline, [2965673943](https://gitlab.com/governgate2/governgate/-/pipelines/2965673943),
+passed unit tests, sandbox smoke, SAST, and secret detection on commit
+`62df3477665ce1fc3ff7bbc505a468e8a62785e7`. The manual job has not yet run in
+a protected end-to-end pipeline; MR review and merge are still required
+before deployment.
 
 The ledger uses a canonical SHA-256 digest. HMAC signing is optional in the
 engine. The manual review job does not receive a signing key, and the current

@@ -182,3 +182,33 @@ This log records actions in the current continuation. Synced files under
   screenshot showed Draft with 2 of 5 steps complete; verify current status.
   Nebius remains disabled pending approved access. The unkeyed digest is not
   independent evidence signing.
+
+## Checkpoint 11 — latest pipeline and handoff verified
+
+- Rechecked GitLab MR [!5](https://gitlab.com/governgate2/governgate/-/merge_requests/5)
+  and its latest branch pipeline
+  [2965673943](https://gitlab.com/governgate2/governgate/-/pipelines/2965673943).
+  The pipeline passed on commit
+  `62df3477665ce1fc3ff7bbc505a468e8a62785e7`. Its four passing jobs were
+  `unit-tests` [17302848784](https://gitlab.com/governgate2/governgate/-/jobs/17302848784),
+  `sandbox-smoke` [17302848785](https://gitlab.com/governgate2/governgate/-/jobs/17302848785),
+  `secret_detection` [17302848783](https://gitlab.com/governgate2/governgate/-/jobs/17302848783),
+  and `semgrep-sast` [17302848782](https://gitlab.com/governgate2/governgate/-/jobs/17302848782).
+- GitLab MR !5 remains open and unmerged. The protected-main manual review
+  stage is intentionally not run in an MR pipeline. It still needs a reviewed
+  merge followed by a real protected SDK bridge run to validate that stage.
+- Rechecked public GitHub PR
+  [#2](https://github.com/devothamgn321/governgate-autonomous-release-governance/pull/2):
+  it remains open, has two successful checks, and is not merged. Latest branch
+  commit is `51aa9219f77ecbdaf6d37d10895b01fa8978a9cd`. Do not treat the local
+  104-test run as a current GitHub Actions result.
+- Refreshed the monorepo implementation guide to point to the latest passing
+  GitLab pipeline. The previous pipeline `2965669878` also passed on the
+  validator-fix commit; the newer documentation commit pipeline is the current
+  latest result.
+- Handoff order: get human review for GitLab MR !5 and GitHub PR #2; after
+  GitLab MR !5 is merged, rerun SDK bridge MR !2 through the protected
+  controller, inspect its evidence, start the blocking manual review job, and
+  confirm the downstream result is mirrored. Keep breaking SDK MR !1
+  unmerged until its conflicts and review are resolved. Finish Devpost rules,
+  eligibility, and remaining fields only after recording a verified demo.
