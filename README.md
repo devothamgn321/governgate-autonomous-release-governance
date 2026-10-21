@@ -1,6 +1,6 @@
 # GovernGate — release governance across services
 
-This repository brings the four GovernGate hackathon projects together under one root so the complete local test suite can run in one place. The GitLab repositories remain the deployment and merge-gate source of truth; each subdirectory here is a snapshot of its verified GitLab `main` branch.
+This repository brings the four GovernGate hackathon projects together under one root so the complete local test suite can run in one place. The GitLab repositories remain the deployment and merge-gate source of truth; each subdirectory preserves a verified GitLab `main` code snapshot, with documentation refreshed in this monorepo.
 
 ## Projects
 
@@ -11,11 +11,11 @@ This repository brings the four GovernGate hackathon projects together under one
 | [`billing-service/`](billing-service/README.md) | Billing consumer that verifies SDK-issued tokens |
 | [`notification-service/`](notification-service/README.md) | Notification control consumer that issues SDK tokens |
 
-GovernGate reads a candidate SDK merge request, confirms its source SHA, discovers downstream consumers, and compares baseline and candidate SDK artifacts in isolated test containers. GitLab Duo provides advisory impact context. Test evidence and the deterministic policy engine produce the gate result. Candidate-controlled test reports cannot approve a change: a passing candidate still requires human review. Nebius is optional and remains disabled.
+GovernGate reads a candidate SDK merge request, confirms its source SHA, selects both fixed downstream consumers, and compares baseline and candidate SDK source in isolated test containers. GitLab Duo provides advisory impact context. Test evidence and the controller’s deterministic verdict logic produce the gate result. Candidate-controlled test reports cannot approve a change: a passing candidate still requires human review. Nebius is optional and remains disabled.
 
 ## Run the complete test suite
 
-Use Python 3.10 or newer. From this directory:
+Use Python 3.12 to match verified CI. From this directory:
 
 ```sh
 python3.12 -m venv .venv
@@ -25,32 +25,25 @@ python -m pip install -r requirements-dev.txt
 ./scripts/test-all.sh
 ```
 
-The script runs the SDK tests, both consumer test suites, and GovernGate's unit, security-boundary, and end-to-end tests. It does not need a GitLab token or Nebius key. The GitLab API-backed controller run requires a short-lived `read_api` token stored only as a protected, masked, environment-scoped variable in the GovernGate project. Never expose it to an SDK merge-request job.
+The script runs the SDK tests, both consumer test suites, and GovernGate's unit, security-boundary, and end-to-end tests. It does not need a GitLab token or Nebius key. The GitLab API-backed controller run requires a least-privilege read-only API credential stored only as a protected, masked, environment-scoped variable in the GovernGate project. Never expose it to an SDK merge-request job.
 
 ## Architecture and trust boundary
 
-The complete component map, request flow, source-identity rules, worker
-isolation, verdict policy, activation runbook, and verified-versus-pending
-status are documented in [IMPLEMENTATION.md](IMPLEMENTATION.md).
+[ARCHITECTURE.md](ARCHITECTURE.md) contains the system map, sequence diagram, four-run matrix, credential boundary, evidence lifecycle and outcome flow. [IMPLEMENTATION.md](IMPLEMENTATION.md) provides setup, manual-review steps, failure recovery and the current verified checkpoint.
 
-```text
-core-auth-sdk merge request
-        │ GitLab bridge: no forwarded variables or credentials
-        ▼
-protected GovernGate controller environment
-        │ resolve and validate GitLab upstream pipeline/job metadata
-        │ read-only GitLab API access
-        ├── resolve baseline and candidate SDK source identities
-        ├── enumerate billing and notification repositories
-        ├── fetch and verify immutable source/artifact inputs
-        ▼
-isolated test workers: baseline × 2 consumers, candidate × 2 consumers
-        │ bounded output, no host Docker socket, no API credential
-        ▼
-evidence ledger → fail-closed policy → mirrored SDK pipeline status
+```mermaid
+flowchart LR
+  MR[SDK merge request] --> Checks[Six existing SDK checks]
+  Checks --> Bridge[Bridge: no forwarded variables]
+  Bridge --> Controller[Protected trusted controller]
+  Controller --> Matrix[Billing and Notification: baseline + candidate]
+  Matrix --> Evidence[Verified source identities + evidence]
+  Evidence --> Human[Blocking human review]
+  Human --> Fresh[Protected final freshness check]
+  Fresh --> Status[Mirrored SDK pipeline status]
 ```
 
-The protected controller and final freshness check use the read-only API credential in the existing governgate-controller environment. Workers, SDK jobs and credential-free manual review do not receive it. After manual review, the final job rechecks upstream identity, SDK target and consumer refs. Changed source requires a new matrix and review. Freshness is a point-in-time check, not an atomic merge guarantee.
+Only the controller and final freshness jobs receive the scoped read-only API credential. Workers and human-review validation do not. Passing tests never merge a change automatically. A moved ref requires a fresh matrix and review; freshness is point-in-time. GitLab Duo is advisory and Nebius remains disabled.
 
 ## GitLab integration status — October 21, 2026
 
