@@ -29,7 +29,7 @@ def summarize_junit(report, expected):
         status = 'INCONCLUSIVE'
     elif failures or errors:
         status = 'FAIL'
-    elif len(cases) <= skipped:
+    elif skipped:
         status = 'INCONCLUSIVE'
     else:
         status = 'PASS'

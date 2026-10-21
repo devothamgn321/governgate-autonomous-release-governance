@@ -240,9 +240,16 @@ def resolve_upstream_request(client, upstream_project, pipeline_id, job_id,
     downstream = (job or {}).get("downstream_pipeline") or {}
     if (not job or job.get("name") != "governgate-impact"
             or int(job.get("pipeline", {}).get("id", 0)) != int(pipeline_id)
-            or int(downstream.get("id", 0)) != int(current_pipeline_id)
-            or int(downstream.get("project_id", 0)) != CONTROLLER):
+            or int(downstream.get("id", 0)) != int(current_pipeline_id)):
         raise ValueError("Upstream job is not the GovernGate bridge for this pipeline")
+    # The documented trigger-job response includes downstream_pipeline.id but
+    # does not promise project_id. Resolve the ID within our fixed controller
+    # project and verify the actual downstream pipeline record instead.
+    current = client.get_pipeline(CONTROLLER, int(current_pipeline_id))
+    if (int(current.get("id", 0)) != int(current_pipeline_id)
+            or int(current.get("project_id", 0)) != CONTROLLER
+            or current.get("source") != "pipeline"):
+        raise ValueError("Current pipeline is not the verified GovernGate downstream")
     iid = int(match.group(1))
     mr = client.get_merge_request(SDK, iid)
     if mr.get("diff_refs", {}).get("head_sha") != head:
@@ -268,6 +275,9 @@ def main(argv=None):
             os.environ.get("CI_PIPELINE_ID"), os.environ.get("CI_PROJECT_ID"))
         record["mr_iid"] = iid
         record = execute(client, iid, head, args.image)
+        if record.get("verdict") == "REQUIRES_MANUAL_REVIEW":
+            from governgate.manual_review import validate_evidence
+            validate_evidence(evidence_ledger.seal(record))
     except Exception as error:
         # Do not print API bodies, credential-bearing URLs or arbitrary exception text.
         record = {**record, "verdict": "INCOMPLETE_EVIDENCE", "error_type": type(error).__name__}
@@ -281,7 +291,7 @@ def main(argv=None):
         lines.append("Verification unavailable: " + record["error_type"])
     Path("governgate-report.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
-    return 0 if record["verdict"] == "READY_FOR_APPROVAL" else 1
+    return 0 if record["verdict"] in {"READY_FOR_APPROVAL", "REQUIRES_MANUAL_REVIEW"} else 1
 
 
 if __name__ == "__main__":

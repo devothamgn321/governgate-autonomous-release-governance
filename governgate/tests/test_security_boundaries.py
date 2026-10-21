@@ -201,3 +201,15 @@ def test_snapshot_binds_api_metadata_to_requested_commit(monkeypatch, mismatch):
     else:
         files, identity = controller.snapshot(Client(), 1, sha)
         assert files == {'x.py': b'abc'} and identity['commit'] == sha
+
+
+@pytest.mark.parametrize("skipped", ["<skipped/>", '<skipped type="pytest.xfail"/>'])
+def test_partly_skipped_required_matrix_is_inconclusive(tmp_path, skipped):
+    report = tmp_path / "report.xml"
+    report.write_text(
+        '<testsuite><testcase classname="test_api" name="test_one"/>'
+        '<testcase classname="test_api" name="test_two">'
+        + skipped + '</testcase></testsuite>'
+    )
+    result = summarize_junit(report, {("test_api", "test_one"), ("test_api", "test_two")})
+    assert result["status"] == "INCONCLUSIVE"

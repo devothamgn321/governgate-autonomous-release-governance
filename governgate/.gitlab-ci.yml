@@ -2,7 +2,23 @@ include:
   - template: Jobs/SAST.gitlab-ci.yml
   - template: Jobs/Secret-Detection.gitlab-ci.yml
 
-stages: [test, verify]
+stages: [test, verify, review, finalize]
+# A passing candidate never merges automatically. The reviewer sees the
+# controller's evidence artifacts before starting this credential-free job.
+# Failed or incomplete controller runs never reach this stage.
+manual-evidence-review:
+  stage: review
+  image: python:3.12
+  needs:
+    - job: trusted-controller
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true" && $CI_PIPELINE_SOURCE == "pipeline"'
+      when: manual
+      allow_failure: false
+  script:
+    - python -m governgate.manual_review --evidence governgate-evidence.json
+
 variables:
   AST_ENABLE_MR_PIPELINES: "true"
 workflow:
@@ -75,3 +91,21 @@ sandbox-smoke:
     - WORKER_IMAGE=$(docker image inspect --format '{{.Id}}' governgate-worker)
     - /tmp/smoke-venv/bin/python ci/smoke.py "$WORKER_IMAGE"
   timeout: 10m
+
+# Runs after the credential-free human review. No candidate code runs here.
+trusted-freshness-check:
+  stage: finalize
+  image: python:3.12
+  needs:
+    - job: trusted-controller
+      artifacts: true
+    - job: manual-evidence-review
+      artifacts: false
+  environment:
+    name: governgate-controller
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_REF_PROTECTED == "true" && $CI_PIPELINE_SOURCE == "pipeline"'
+  script:
+    - pip install .
+    - python -m governgate.manual_review --check-freshness --evidence governgate-evidence.json
+  allow_failure: false

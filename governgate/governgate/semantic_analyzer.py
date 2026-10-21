@@ -6,6 +6,7 @@ Nemotron is only asked afterwards to explain body-level behaviour changes.
 """
 
 import ast
+import copy
 
 REQUIRED_PARAMETER_ADDED = "REQUIRED_PARAMETER_ADDED"
 OPTIONAL_PARAMETER_ADDED = "OPTIONAL_PARAMETER_ADDED"
@@ -14,9 +15,10 @@ PARAMETER_BECAME_REQUIRED = "PARAMETER_BECAME_REQUIRED"
 FUNCTION_REMOVED = "FUNCTION_REMOVED"
 FUNCTION_ADDED = "FUNCTION_ADDED"
 BODY_CHANGED = "BODY_CHANGED"
+SIGNATURE_CHANGED = "SIGNATURE_CHANGED"
 
 # Change types that can break an existing caller.
-BREAKING = {REQUIRED_PARAMETER_ADDED, PARAMETER_REMOVED, PARAMETER_BECAME_REQUIRED, FUNCTION_REMOVED}
+BREAKING = {SIGNATURE_CHANGED, REQUIRED_PARAMETER_ADDED, PARAMETER_REMOVED, PARAMETER_BECAME_REQUIRED, FUNCTION_REMOVED}
 
 
 def _signature(node):
@@ -33,6 +35,16 @@ def _signature(node):
         if default is None:
             required.append(arg.arg)
     return names, required
+
+
+def _argument_shape(node):
+    """Argument order, kinds and defaults, excluding type annotations."""
+    args = copy.deepcopy(node.args)
+    for item in ast.walk(args):
+        if isinstance(item, ast.arg):
+            item.annotation = None
+            item.type_comment = None
+    return ast.dump(args)
 
 
 def _render(name, node):
@@ -83,6 +95,10 @@ def compare_sources(old_source, new_source, module_path):
                                    [p for p in added if p not in new_required]))
         if newly_required:
             changes.append(_change(module_path, name, PARAMETER_BECAME_REQUIRED, old_sig, new_sig, newly_required))
+        # Compare argument syntax without annotations: catches reordering, kinds,
+        # variadic removal and changed defaults even when names are unchanged.
+        if not (added or removed or newly_required) and _argument_shape(old_node) != _argument_shape(new_node):
+            changes.append(_change(module_path, name, SIGNATURE_CHANGED, old_sig, new_sig))
         if old_body != new_body and old_sig == new_sig:
             changes.append(_change(module_path, name, BODY_CHANGED, old_sig, new_sig))
 
