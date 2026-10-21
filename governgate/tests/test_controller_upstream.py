@@ -1,22 +1,29 @@
 import pytest
 
-from governgate.controller import SDK, resolve_upstream_request
+from governgate.controller import CONTROLLER, SDK, resolve_upstream_request
+from governgate.gitlab_client import GitLabClient
 
 
 class FakeGitLab:
     def __init__(self, *, project_id=SDK, source="merge_request_event",
                  ref="refs/merge-requests/42/head", sha="a" * 40,
                  job_name="governgate-impact", mr_sha="a" * 40,
-                 downstream_id=789, downstream_project=87601227):
+                 downstream_id=789,
+                 controller_project=87601227, controller_source="pipeline"):
         self.pipeline = {"project_id": project_id, "source": source, "ref": ref, "sha": sha}
         self.job = {"id": 456, "name": job_name, "pipeline": {"id": 123},
-                    "downstream_pipeline": {"id": downstream_id, "project_id": downstream_project}}
+                    "downstream_pipeline": {"id": downstream_id}}
+        self.controller_pipeline = {"id": 789, "project_id": controller_project,
+                                    "source": controller_source}
         self.mr = {"diff_refs": {"head_sha": mr_sha}}
 
     def get_pipeline(self, project_id, pipeline_id):
-        assert project_id == SDK
-        assert pipeline_id == 123
-        return self.pipeline
+        if project_id == SDK:
+            assert pipeline_id == 123
+            return self.pipeline
+        assert project_id == CONTROLLER
+        assert pipeline_id == 789
+        return self.controller_pipeline
 
     def list_pipeline_trigger_jobs(self, project_id, pipeline_id):
         assert project_id == SDK
@@ -40,7 +47,8 @@ def test_resolves_mr_from_verified_upstream_pipeline_and_bridge():
     {"job_name": "untrusted-job"},
     {"mr_sha": "b" * 40},
     {"downstream_id": 790},
-    {"downstream_project": 12345},
+    {"controller_project": 12345},
+    {"controller_source": "web"},
 ])
 def test_rejects_untrusted_or_mismatched_upstream_identity(kwargs):
     with pytest.raises(ValueError):
@@ -54,3 +62,29 @@ def test_rejects_invalid_upstream_identifiers():
         resolve_upstream_request(FakeGitLab(), SDK, "0", "456", "789")
     with pytest.raises(ValueError):
         resolve_upstream_request(FakeGitLab(), SDK, "123", "456", "789", current_project_id=SDK)
+
+
+@pytest.mark.parametrize("values", [
+    (None, "123", "456", "789"),
+    (SDK, None, "456", "789"),
+    (SDK, "123", None, "789"),
+    (SDK, "123", "456", None),
+])
+def test_missing_upstream_metadata_fails_closed(values):
+    with pytest.raises(ValueError):
+        resolve_upstream_request(FakeGitLab(), *values)
+
+
+def test_trigger_job_client_uses_documented_pipeline_scoped_endpoint(monkeypatch):
+    client = GitLabClient(token="test")
+    seen = {}
+
+    def list_all(path, params=None):
+        seen["path"] = path
+        seen["params"] = params
+        return [{"id": 456, "downstream_pipeline": {"id": 789}}]
+
+    monkeypatch.setattr(client, "_list", list_all)
+    jobs = client.list_pipeline_trigger_jobs(SDK, 123)
+    assert seen["path"] == f"/projects/{SDK}/pipelines/123/trigger_jobs"
+    assert jobs[0]["downstream_pipeline"] == {"id": 789}

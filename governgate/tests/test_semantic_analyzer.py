@@ -56,3 +56,15 @@ def test_real_sdk_change(tmp_path):
     changes = compare_sources(old, new, "tokens.py")
     assert ("verify_token", "REQUIRED_PARAMETER_ADDED") in types(changes)
     assert all(c["symbol"] != "issue_token" for c in changes)
+
+
+def test_parameter_reorder_is_breaking():
+    changes = compare_sources("def f(a,b): return a-b", "def f(b,a): return a-b", "m.py")
+    assert changes[0]["change_type"] == "SIGNATURE_CHANGED"
+    assert changes[0]["breaking"]
+
+
+def test_parameter_kind_and_default_changes_are_detected():
+    for old, new in [("a,b", "a,*,b"), ("a=1", "a=2"), ("a,*rest", "a")]:
+        changes = compare_sources(f"def f({old}): pass", f"def f({new}): pass", "m.py")
+        assert any(c["change_type"] == "SIGNATURE_CHANGED" and c["breaking"] for c in changes)
