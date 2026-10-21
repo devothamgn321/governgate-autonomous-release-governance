@@ -1,4 +1,4 @@
-# GovernGate Hackathon Monorepo
+# GovernGate — release governance across services
 
 This repository brings the four GovernGate hackathon projects together under one root so the complete local test suite can run in one place. The GitLab repositories remain the deployment and merge-gate source of truth; each subdirectory here is a snapshot of its verified GitLab `main` branch.
 
@@ -50,25 +50,15 @@ isolated test workers: baseline × 2 consumers, candidate × 2 consumers
 evidence ledger → fail-closed policy → mirrored SDK pipeline status
 ```
 
-Only the protected controller needs the GitLab API credential. GovernGate MR !3 adds checks that the upstream pipeline belongs to the SDK project, came from a detached merge-request pipeline, points to the expected MR ref, was started by the `governgate-impact` bridge job, and still matches the live MR head. Its pipeline passed, but the change is not merged and is absent from this GitLab `main` snapshot. Review the GovernGate README and implementation guide for the current activation requirements.
+The protected controller and final freshness check use the read-only API credential in the existing governgate-controller environment. Workers, SDK jobs and credential-free manual review do not receive it. After manual review, the final job rechecks upstream identity, SDK target and consumer refs. Changed source requires a new matrix and review. Freshness is a point-in-time check, not an atomic merge guarantee.
 
-## GitLab integration status
+## GitLab integration status — October 21, 2026
 
-The GovernGate engine and all four README updates are merged into their respective GitLab `main` branches, and their post-merge pipelines passed. SDK bridge MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2) remains open as a draft. Its SDK test, security, and wheel-build jobs passed, but its bridge job failed after creating downstream pipeline [2961234944](https://gitlab.com/governgate2/governgate/-/pipelines/2961234944). That downstream run failed closed because GovernGate `main` did not yet contain the trusted upstream resolver.
+[GovernGate MR !6](https://gitlab.com/governgate2/governgate/-/merge_requests/6) is merged at `84e6779625460fe29406a5a15c9949f4ee1b206c`. This snapshot contains the deployed controller, blocking manual review, post-review freshness check, skipped-test rejection and legacy signature checks. The GitLab SDK bridge is deployed and retains all six security/test/build jobs. Nebius remains optional and disabled pending API approval.
 
-GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3) now contains commit `f97389a5d905ab85498df6b6a9282ba030175b46`. It uses GitLab's pipeline-scoped `trigger_jobs` API and checks that the recorded downstream pipeline and project match the running controller. Its pipeline [2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877) passed. The prior controller failure remains the only live downstream execution; no baseline/candidate consumer comparison or mirrored merge-blocking result has been verified. The MR is not merged, and `GOVERNGATE_API_TOKEN` is not configured. Do not merge the deliberately breaking SDK demonstration MR into `main`.
+Fresh positive and negative runs, exact SDK/consumer identities, artifacts and any retries are recorded in [the live execution log](LIVE_VERIFICATION_2026-10-21.md). The monorepo local suite passed **128 tests**: SDK 11, Billing 5, Notification 3 and GovernGate 109. Local tests do not replace the GitLab API-backed run.
 
-The protected `governgate-controller` environment allows the project owner and Rohan Mahendra (`bmrohan003`) to deploy. The project has no `GOVERNGATE_API_TOKEN` variable yet. GitLab documents the `CI_UPSTREAM_*` variables from version 18.9, and the `trigger_jobs` endpoint plus a real downstream relationship have been verified in a live API response. A run with the updated controller is still needed to verify the injected values and execute the consumers. Nebius is optional and disabled.
-
-The architecture and implementation documentation is merged in GovernGate MR [!2](https://gitlab.com/governgate2/governgate/-/merge_requests/2), SDK MR [!4](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/4), billing MR [!1](https://gitlab.com/governgate2/billing-service/-/merge_requests/1), and notification MR [!1](https://gitlab.com/governgate2/notification-service/-/merge_requests/1). Each post-merge pipeline passed: GovernGate `2961155788`, SDK `2961155999`, billing `2961157136`, and notification `2961156991`.
-
-### Staged controller integration update — October 18, 2026
-
-GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3) adds trusted upstream identity resolution for the credential-free SDK bridge. At commit `f97389a5d905ab85498df6b6a9282ba030175b46`, its pipeline [2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877) passed. The controller checks the upstream SDK project and detached merge-request pipeline, validates the bridge job through GitLab's pipeline-scoped trigger-jobs API, binds its downstream pipeline to the current controller run, and confirms that the pipeline SHA still matches the live MR head. The bridge forwards no variables or credentials.
-
-SDK bridge MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2) remains open. Its latest observed pipeline [2961227944](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2961227944) passed the six existing SDK jobs, then its bridge failed because `main` did not yet contain the resolver. The MR !3 resolver has passed CI but is not merged, so the live API-backed comparison is still pending. After review and merge of the controller change, configure the protected read-only API token and rerun the SDK bridge pipeline.
-
-The GitHub `main` branch contains the verified GitLab `main` snapshots listed in [SOURCE_REVISIONS.md](SOURCE_REVISIONS.md). Feature branch `feature/trusted-upstream-controller` adds the pending controller and bridge changes for review; neither that branch nor the GitLab MRs claim that a live cross-service run has passed. The root GitHub Actions workflow runs the complete local test suite. GitLab controller settings, protected variables, job-token permissions, and Duo review remain managed in the four original GitLab projects. The four GitLab source projects are private, so Devpost's GitLab public-repository requirement remains unmet.
+GitLab remains the operational CI source of truth. GitHub is a public reproducible source snapshot and documentation mirror. Its Actions workflow runs local tests; copying this repo does not reproduce GitLab secrets, protection settings, memberships, runners or Duo configuration automatically. Private GitLab links require access. Candidate reports are not independent attestation, so mandatory human review remains part of the gate. This prototype does not claim general enterprise readiness.
 
 ## Source revisions
 

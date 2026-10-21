@@ -1,119 +1,85 @@
-# GovernGate implementation guide
+# Current monorepo checkpoint — October 21, 2026
 
-**Status reviewed: October 18, 2026.** This guide distinguishes implemented and tested behavior from GitLab integration steps that are still pending. The runnable monorepo is a snapshot of the four GitLab `main` branches listed in [SOURCE_REVISIONS.md](SOURCE_REVISIONS.md); it does not include the unmerged SDK bridge or GovernGate controller MR changes.
+GovernGate MR !6 is merged at 84e6779625460fe29406a5a15c9949f4ee1b206c. The positive SDK pipeline and final trusted freshness job passed today; the breaking SDK pipeline was blocked by a verified Billing regression after one API-timeout retry. See [the full execution log](LIVE_VERIFICATION_2026-10-21.md) for exact links and limits.
 
-## What the system does
+The current source snapshot is recorded in [SOURCE_REVISIONS.md](SOURCE_REVISIONS.md). Run `./scripts/test-all.sh` from this monorepo after installing requirements-dev.txt; the complete suite passed 128 tests. The guide below retains dated historical checkpoints from the operational project; this paragraph and the execution log supersede statements that MR !6 is not merged or that its final job has not run.
 
-GovernGate checks the downstream effect of a proposed `core-auth-sdk` change. It holds each consumer at an identified commit, executes that consumer against both the current SDK baseline and the exact SDK merge-request candidate, and applies a deterministic policy to the observed outcomes. The current demo has two consumers: `billing-service`, which calls `verify_token`, and `notification-service`, which calls `issue_token` and acts as a control for verifier-only changes.
+# GovernGate monorepo implementation guide
 
-GitLab Duo supplies advisory impact analysis in the existing SDK workflow. It helps explain why a consumer may be affected; it does not decide the gate. GovernGate's policy and verified execution evidence determine whether the candidate is blocked or needs human review.
+**Status: October 20, 2026.** MR !5 is merged into main at `6f543ed7264c8fe5419de9e6e623a8ce18661bad`. The required manual-review stage is deployed. The verified runs below supersede earlier pre-merge status notes.
 
-## Components and responsibilities
+## Purpose and scope
 
-| Component | Implementation | Responsibility |
-| --- | --- | --- |
-| Semantic analysis | `governgate/governgate/semantic_analyzer.py` | Identifies API or semantic changes for impact context. |
-| Consumer discovery | `governgate/governgate/consumer_discovery.py` | Finds registered downstream projects and their default refs. |
-| GitLab client | `governgate/governgate/gitlab_client.py` | Reads project, MR, pipeline, tree, and repository-file data. |
-| Trusted controller | `governgate/governgate/controller.py` | Resolves upstream pipeline identity, pins source revisions, coordinates workers, rechecks for source movement, and emits the result. |
-| Differential verifier | `governgate/governgate/differential_verifier.py` | Compares each consumer's baseline and candidate outcomes. |
-| Worker | `governgate/ci/worker.py`, `worker_results.py`, `Dockerfile.worker` | Tests verified source in an isolated container and returns bounded test evidence. |
-| Evidence ledger | `governgate/governgate/evidence_ledger.py` | Records commit identities, source hashes, worker image identity, and outcomes; supports optional HMAC integrity checks. |
-| Policy and reporting | `governgate/governgate/policy_engine.py`, `impact_reporter.py` | Produces deterministic fail-closed verdicts and a human-readable report. |
-| Optional analysis modules | `root_cause.py`, `remediation.py`, `nemotron_client.py` | Provide supporting analysis and optional integrations; they are not required by the protected controller path. |
-| SDK bridge template | `governgate/templates/governgate-check.gitlab-ci.yml` | Shows the downstream integration pattern. The live SDK bridge remains under review in SDK MR !2. |
+GovernGate checks whether a change to core-auth-sdk breaks its known consumers. The demonstration covers billing-service, the affected consumer, and notification-service, the control consumer. For each service, the trusted controller runs pinned consumer source against both the SDK target-branch baseline and the exact merge-request candidate. GitLab Duo provides advisory impact context; deterministic policy and execution evidence control the gate.
 
-The four repository responsibilities and pinned GitLab source revisions are listed in the root [README](README.md) and [source revision record](SOURCE_REVISIONS.md).
+## Architecture
 
-## End-to-end flow
+1. A core-auth-sdk merge request runs its existing six-job security pipeline. GitLab Duo provides impact context as an advisory signal.
+2. The credential-free multi-project bridge in [core-auth-sdk MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2) starts the downstream GovernGate pipeline and mirrors its result. The bridge must not pass a personal PAT, controller API token, Nebius key, signing key, or arbitrary pipeline variables.
+3. The protected GovernGate controller resolves the upstream SDK project, pipeline, trigger job, merge request IID, and exact candidate commit. It requires the expected SDK project and a detached merge-request pipeline. Missing or mismatched identity fails closed.
+4. The controller snapshots the SDK baseline and candidate and the selected branch commit for each consumer. It paginates the complete repository trees, downloads files at immutable commit SHAs, verifies GitLab content hashes and archive digests, and rechecks moving refs before finalizing. Changed refs produce SUPERSEDED.
+5. The reviewed controller pipeline builds the worker and pins the immutable image ID. It sends only verified source bytes to fresh worker containers. Workers have no network, API credentials, signing key, host mounts, or Docker socket. They use a read-only root, unprivileged user, resource/time/output limits, and are removed after execution.
+6. Each consumer is tested twice at the same pinned source commit: once with the SDK baseline and once with the candidate. For the current demo, that is Billing baseline/candidate and Notification baseline/candidate.
+7. The controller checks expected test results and records SDK/consumer identities, source digests, worker image identity, and outcomes in the evidence ledger. Missing tests, incomplete pagination, failed setup, timeout, output overflow, unexpected results, identity mismatch, or source movement fails closed.
+8. A candidate failure is BLOCKED. A failed baseline or incomplete run cannot count as a pass. Four passing runs produce REQUIRES_MANUAL_REVIEW, because candidate-controlled test code can forge its own reports. A pass never means automatic approval or merge.
+9. MR !5 adds the required manual-evidence-review job. It consumes the trusted-controller artifact, validates the ledger digest, SDK project/MR identity, pinned SDK commits and archive hashes, worker image identity, exact consumer set, and all four PASS outcomes. The job is blocking with allow_failure false, declares no environment, and is restricted to protected main pipelines triggered by the bridge. A person must inspect the trusted artifact and start the job.
 
-```mermaid
-sequenceDiagram
-    participant Dev as SDK merge request
-    participant CI as Existing SDK CI and Duo flow
-    participant Bridge as Credential-free bridge
-    participant Controller as Protected GovernGate controller
-    participant GitLab as GitLab read API
-    participant Workers as Isolated test workers
-    participant Policy as Evidence and policy
+## Trust and credentials
 
-    Dev->>CI: Open or update detached merge-request pipeline
-    CI->>CI: Run six existing SDK test, security, scan, and build jobs
-    CI->>CI: Duo adds advisory impact context
-    CI->>Bridge: Start bridge after existing checks
-    Bridge->>Controller: Trigger downstream pipeline; forward no variables or secrets
-    Controller->>GitLab: Resolve upstream project, pipeline, and bridge-job identity
-    GitLab-->>Controller: Verified SDK MR IID, ref, pipeline SHA, and bridge relationship
-    Controller->>GitLab: Read target SDK SHA, candidate SDK SHA, and consumer tree/file data
-    GitLab-->>Controller: Pinned source identities and content
-    Controller->>Workers: Run baseline and candidate for each pinned consumer
-    Workers-->>Controller: Test outcomes and bounded output
-    Controller->>GitLab: Recheck MR head and pinned baseline refs
-    Controller->>Policy: Record evidence and evaluate deterministic verdict
-    Policy-->>Controller: BLOCKED, SUPERSEDED, INCOMPLETE, or REQUIRES_MANUAL_REVIEW
-    Controller-->>Bridge: Return pipeline result
-    Bridge-->>Dev: Mirror downstream status into SDK pipeline
-```
+Only the protected controller and post-review freshness check use the read-only GitLab API credential scoped to the governgate-controller environment. The bridge, SDK jobs, untrusted merge-request jobs, workers, and manual-review job must not receive it. Masking alone is not a trust boundary. Keep Nebius disabled until API access is approved and provisioned.
 
-## Identity and source verification
+The ledger's SHA-256 digest is unkeyed in the current live setup. It detects changes or inconsistency but does not independently prove authenticity. HMAC is an optional engine capability, but the reviewer job has no signing key and no signed live run has been demonstrated. The reviewer must inspect trusted controller artifacts. An independently trusted test-result or signing channel remains future hardening.
 
-The bridge is designed to carry no GitLab API token, Nebius key, or arbitrary variables. The controller determines its caller from GitLab's upstream project, pipeline, and bridge-job metadata. It checks that the caller is the expected SDK project, that the source is a detached merge-request pipeline targeting `main`, that the job is the expected `governgate-impact` bridge, and that the recorded downstream controller project and pipeline match the current run. The MR IID comes from the detached MR ref. The pipeline SHA must match the live MR head. Missing, stale, or inconsistent identity fails closed.
+## Verified live execution
 
-The controller captures the target SDK commit, exact candidate SDK commit, and current `main` commit of each consumer. Repository-tree reads are paginated so a partial tree cannot silently omit source. Each file is checked against GitLab's content metadata at its pinned commit. Before finalizing, the controller rechecks the live MR head and consumer baseline refs; movement marks the run superseded. The worker receives verified source bytes, not a mutable branch name.
+[GovernGate MR !5](https://gitlab.com/governgate2/governgate/-/merge_requests/5) is merged. The blocking manual evidence-review stage is deployed on main at commit `6f543ed7264c8fe5419de9e6e623a8ce18661bad`.
 
-This implementation tests exact SDK source in the worker with the consumer. It does not claim that a separately built SDK wheel was installed into each consumer. A build artifact identity is recorded in the SDK CI flow, but the current live controller comparison uses pinned source snapshots.
+- **Passing case, SDK MR !6:** [SDK pipeline 2965797284](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965797284) and [controller pipeline 2965822563](https://gitlab.com/governgate2/governgate/-/pipelines/2965822563) passed. The pinned consumer checks passed and [manual evidence-review job 17303673714](https://gitlab.com/governgate2/governgate/-/jobs/17303673714) passed. A successful manual job records the review action; it is not independent proof of test-report authorship.
+- **Blocked case, SDK MR !1:** [SDK pipeline 2965797494](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965797494) was blocked by [controller pipeline 2965800387](https://gitlab.com/governgate2/governgate/-/pipelines/2965800387). [Controller job 17303672652](https://gitlab.com/governgate2/governgate/-/jobs/17303672652) reported Billing baseline PASS and candidate FAIL; Notification passed both versions.
 
-## Isolation and secrets
+The earlier controller run 2961370304 predates the manual-review stage and failed closed. It is historical evidence, not the current deployment status.
 
-Only the protected controller needs read-only GitLab API access. The planned `GOVERNGATE_API_TOKEN` is a short-lived `read_api` group token held as a protected, masked variable in the GovernGate project and scoped to the protected `governgate-controller` environment. It is not configured yet. No personal PAT is passed to an untrusted merge-request pipeline. Nebius is optional, has no approved key yet, and remains disabled.
+## Intended use and current limits
 
-Workers receive only source inputs and test configuration. They have no API token, signing key, host mounts, Docker socket, or network access. The worker image is built in the trusted pipeline and resolved to an immutable local image ID. Workers run with a read-only root filesystem, dropped capabilities, resource and time limits, and bounded logs/output; containers are removed after completion or failure. Dependencies are fixed by the worker image so consumer requirements cannot replace the candidate SDK under test.
+GovernGate is a working prototype for platform teams, service owners, and engineering leaders coordinating shared SDK changes. The demonstrated workflow compares one SDK against Billing and Notification. Broader repository onboarding and enterprise deployment need separate validation; no customer savings or production incident reduction have been measured.
 
-The controller is restricted to protected `main` controller pipelines. Protected-environment deploy access was configured for the owner and teammate `bmrohan003`; repository branch protections, review approvals, job-token allowlists, and protected-variable settings remain part of the activation checklist. Protecting the environment alone does not make the bridge an organization-wide policy, so review and branch protection remain necessary.
+This operational repository is private. External readers need project access. The public GitHub monorepo contains source, tests, setup documentation, and a captured-evidence demo; that demo does not execute live controller runs. Candidate code can forge its own test reports, so passing results require review and independent result attestation remains future hardening.
 
-## Evidence and verdict rules
+## Repository responsibilities
 
-The evidence ledger records the MR IID, target and candidate SDK commits, each consumer commit, downloaded source hashes, worker image ID, and individual outcomes. HMAC signing is optional and used only when its key is configured. Reports do not include secret values.
+- [governgate](https://gitlab.com/governgate2/governgate): trusted controller, GitLab identity/source validation, policy, evidence, worker image, and CI gate.
+- [core-auth-sdk](https://gitlab.com/governgate2/core-auth-sdk): shared token library, preserved six-job security pipeline and Duo flow, and deployed credential-free bridge.
+- [billing-service](https://gitlab.com/governgate2/billing-service): affected downstream consumer.
+- [notification-service](https://gitlab.com/governgate2/notification-service): control downstream consumer.
 
-The system rejects missing consumers, incomplete pagination, content/hash mismatches, identity mismatches, missing or unexpected tests, zero executed tests, setup failures, timeouts, output overflow, source movement, malformed reports, and unknown outcomes. A candidate failure is `BLOCKED`. A failed baseline or incomplete run cannot become a pass. If all candidate tests pass, the outcome is `REQUIRES_MANUAL_REVIEW`: candidate code runs in the same process and UID as pytest and can forge its own JUnit output. A passing test report is therefore not an independent trusted approval signal.
-
-## Repository and CI integration
-
-`core-auth-sdk` retains its verified six-job security/test/build pipeline and existing Duo flow. The optional bridge belongs after those checks and should mirror the downstream controller result into the SDK pipeline. The bridge must not change the six existing jobs or forward credentials. Billing and notification retain their normal integration CI; the protected controller performs the cross-service baseline/candidate comparison using pinned source.
-
-The current feature MRs and GitLab pipeline evidence are recorded in the root README. As of this review, GovernGate MR !3's resolver fix is on its feature branch and its pipeline passed, but it is not merged. The SDK bridge MR !2 remains open/draft. One older live downstream run failed closed before executing the consumer comparisons. No successful API-backed end-to-end gate is claimed.
-
-## Staged controller integration update
-
-The review branch `feature/trusted-upstream-controller` carries the implementation from GovernGate MR [!3](https://gitlab.com/governgate2/governgate/-/merge_requests/3) and the credential-free bridge from SDK MR [!2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2). GovernGate commit `f97389a5d905ab85498df6b6a9282ba030175b46` passed pipeline [2961247877](https://gitlab.com/governgate2/governgate/-/pipelines/2961247877). The six existing SDK jobs passed in pipeline [2961227944](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2961227944), while the new bridge failed closed because the resolver was not yet present on GovernGate `main`.
-
-The controller now resolves the SDK MR from `CI_UPSTREAM_PROJECT_ID`, `CI_UPSTREAM_PIPELINE_ID`, and `CI_UPSTREAM_JOB_ID`. It verifies that the upstream pipeline belongs to the fixed SDK project, is a detached merge-request pipeline with an expected MR ref, and still points to the current MR head. It uses GitLab's pipeline-scoped trigger-jobs API to prove that the named `governgate-impact` bridge created this exact downstream controller pipeline in the fixed controller project. The SDK bridge forwards no YAML or pipeline variables and supplies no MR ID, commit SHA, or credentials.
-
-This stage proves the identity-resolution code with unit tests and GitLab CI; it does not prove injected upstream metadata in a protected controller run or a live API-backed consumer comparison. Keep both MRs in review. After the controller resolver is reviewed and merged, provision the protected read-only token, then rerun the SDK bridge and verify its downstream result. The token is required for project, MR, commit, and repository reads. The GitHub `main` branch remains the pinned GitLab snapshot; this feature branch intentionally includes the unmerged review changes.
+The public GitHub monorepo is [governgate-autonomous-release-governance](https://github.com/devothamgn321/governgate-autonomous-release-governance). It contains all four projects, integrated tests, source revisions, and a companion implementation guide.
 
 ## Local verification
 
-From the monorepo root, run the complete suite:
+From the GovernGate repository, install the test dependencies and run the unit suite:
 
-```sh
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-./scripts/test-all.sh
-```
+    python -m pip install '.[test]' pyyaml
+    pytest -q
 
-The October 18, 2026 local run passed 88 tests: 11 SDK, 5 billing, 3 notification, and 69 GovernGate tests. This confirms the local source snapshot and deterministic fixtures, not the pending live GitLab controller run. The GitLab worker smoke additionally exercises isolated baseline/candidate fixtures, early exits, forged JUnit, and output flooding.
+The live controller also needs the protected GitLab variable and a trusted Docker-in-Docker runner. Unit tests require no GitLab or Nebius credentials. The public monorepo integrated suite previously passed 104 tests: SDK 11, Billing 5, Notification 3, GovernGate 85.
 
-## Activation checklist
+## Remaining checkpoints
 
-1. Review and merge the GovernGate controller resolver MR after its review checks pass.
-2. Review the SDK bridge MR while preserving the six-job pipeline and Duo flow; do not merge the intentionally breaking demo change into `main`.
-3. Add a short-lived `read_api` token only as protected, masked `GOVERNGATE_API_TOKEN` scoped to `governgate-controller`; never place it in the SDK project or at broad group scope.
-4. Confirm controller environment access, protected branch and variable settings, restricted job-token allowlist, and a dedicated Docker-in-Docker runner with TLS.
-5. Trigger the bridge from a real detached SDK MR pipeline. Verify the injected upstream identity, exact SDK and consumer SHAs, four consumer runs, evidence artifact, and mirrored SDK status.
-6. Demonstrate the expected fixture case: billing baseline passes and candidate fails; notification baseline and candidate pass. Confirm a failing mirrored result prevents merge. Keep a passing candidate at human review.
-7. Record the real pipeline URL and evidence in the submission. Keep Nebius disabled unless API access is approved and the integration is separately tested.
+1. Review the MR !6 source-review fixes and run new positive/negative pipelines after deployment. The source review does not audit runner host isolation or all live permission settings.
+2. Reproduce the positive and negative pipeline outcomes after relevant code changes; retain pinned identities and trusted-controller artifacts.
+3. Strengthen independent test-result attestation. Candidate-controlled reports and the unkeyed ledger digest are documented limitations.
+4. Validate onboarding of additional SDKs and consumers before claiming general enterprise readiness. No customer savings or incident-reduction metrics have been measured.
+5. Keep Nebius optional and disabled pending approved access and a verified live call.
+6. Verify public mirror freshness separately from this private operational repository.
 
-## Scope and known limits
+The detailed cross-repository source revisions and local run instructions are in the public GitHub monorepo. This guide records the GovernGate architecture and current GitLab execution status.
 
-The live controller has not completed a verified consumer comparison, so GovernGate is not yet a proven automatic cross-service merge gate. Automated remediation and Nebius are outside the protected controller's active path. There is no independent trusted test-result channel yet. The monorepo is a reproducible source snapshot, not a replacement for each GitLab repository's CI settings or branch protections. Hackathon path eligibility still depends on the actual project creation date; use Path A only if that date is verified. If the project predates the Path A window, Path B requires the separately specified public deployment.
+## October 20 review-fix checkpoint — MR !6 (not merged)
+
+The branch adds a final trusted-freshness-check stage after the blocking manual-evidence-review job. It uses the existing protected governgate-controller environment and fixed GitLab API endpoint. Before authenticating it requires the expected controller project, protected main and multi-project pipeline source. It resolves the immutable upstream bridge/downstream relationship again, binds the evidence MR/candidate to that request, requires an open same-project SDK MR targeting main, and compares the current SDK target and both consumer main commits with the recorded evidence. A mismatch or API failure blocks completion. Rerun the SDK pipeline to rebuild the matrix and repeat manual review; retrying the freshness job alone cannot validate changed source. No candidate code executes in this final job, and the manual job remains credential-free.
+
+This is a point-in-time check at pipeline completion, not an atomic merge transaction or independent test-result attestation. Re-run verification when relevant source changes after completion. Branch protection and merge policy remain necessary.
+
+Other fixes: any skipped required worker test is INCONCLUSIVE; the legacy semantic analyzer detects reordered parameters, parameter-kind changes, variadic removal and changed defaults conservatively as breaking SIGNATURE_CHANGED when not already classified. The disabled legacy CLI is not re-enabled.
+
+Validation: 109 tests passed locally on Python 3.12. New regression coverage includes moved SDK target/consumer refs, closed MR, unrelated evidence, API failure, untrusted context, final-stage dependencies and signature changes. MR pipelines validate the branch; the protected post-review job requires deployment to main and a fresh bridge-triggered run for live verification. No new live cross-service run has been claimed. Nebius remains optional. See MR !6 for exact commit and pipeline evidence.
