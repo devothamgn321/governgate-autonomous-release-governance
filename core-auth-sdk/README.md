@@ -26,15 +26,7 @@ affect billing. Notification calls only `issue_token`; it is the control
 consumer for verifier-only changes. See the [GovernGate architecture and
 runbook](https://gitlab.com/governgate2/governgate/-/blob/main/README.md).
 
-The engine has been merged to `governgate2/governgate/main`. The proposed
-credential-free SDK bridge is tracked in
-[MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2).
-Until that bridge is reviewed and the protected controller is provisioned,
-the SDK pipeline does not provide a verified live GovernGate result. The
-bridge passes only the SDK MR IID and full head SHA to the controller; it must
-not receive an API token or Nebius key. Its result is mirrored into the SDK
-pipeline after the existing tests, scans, and wheel build. The separate demo
-preparation change is [MR !3](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/3).
+The credential-free bridge is deployed on SDK main and starts reviewed GovernGate main after the existing checks. It forwards no YAML or pipeline variables. The controller derives MR and candidate identity from GitLab's verified upstream pipeline/bridge metadata; it does not trust caller-supplied IID/SHA variables. See the [current architecture](../ARCHITECTURE.md) and [operator steps](../IMPLEMENTATION.md).
 
 ## Pipeline and merge workflow
 
@@ -49,16 +41,17 @@ For an SDK change:
 1. Open a merge request targeting `main`; the existing test and security jobs
    run against that change.
 2. Review all six jobs and inspect the wheel source SHA and checksum.
-3. Once the bridge is merged and activation is verified, the final bridge job
-   sends the MR IID and exact source SHA to the protected GovernGate controller.
+3. The final bridge starts the protected GovernGate pipeline. The controller
+   resolves the MR IID and exact candidate SHA from verified GitLab metadata.
 4. Review the controller evidence for the baseline and candidate runs of both
    consumers. A candidate failure blocks. A candidate pass still requires
    human review because candidate code can forge its JUnit report.
-5. Merge only after required review and pipeline policy checks. Do not merge
+5. After human review, the protected final freshness job must confirm the MR,
+   SDK target and both consumer refs still match. Merge only after required review and pipeline policy checks. Do not merge
    the intentionally breaking demo MR into `main`.
 
-GovernGate uses a short-lived `read_api` group access token only inside its
-protected controller environment. No personal PAT or Nebius key belongs in
+GovernGate uses a least-privilege read-only API credential only inside its
+protected controller and final freshness jobs. No personal PAT or Nebius key belongs in
 SDK jobs. The controller project owns its protected credential; the bridge
 does not forward secrets or arbitrary pipeline variables.
 
