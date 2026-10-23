@@ -26,10 +26,7 @@ fixed across two isolated test runs:
 
 The comparison detects whether candidate behavior fails where the baseline
 passes. GovernGate also runs `notification-service` as a control consumer.
-The engine is merged, but the SDK bridge and protected controller activation
-are still pending; no live API-backed billing run is claimed. See the
-[GovernGate runbook](https://gitlab.com/governgate2/governgate/-/blob/main/README.md)
-and SDK bridge [MR !2](https://gitlab.com/governgate2/core-auth-sdk/-/merge_requests/2).
+The SDK bridge and protected controller are deployed. In the October 21 breaking case, Billing baseline passed and candidate failed, blocking the SDK pipeline; the compatible case passed both. See the [current architecture](../ARCHITECTURE.md), [operator runbook](../IMPLEMENTATION.md) and [dated evidence](../LIVE_VERIFICATION_2026-10-21.md). An all-pass matrix still requires human review and final freshness validation.
 
 ## Local development
 
