@@ -1,42 +1,31 @@
-# GovernGate
+# GovernGate controller
 
-GovernGate checks whether a proposed change to core-auth-sdk breaks its consumers. The trusted controller compares Billing and Notification at pinned commits against the SDK target-branch baseline and exact merge-request candidate. GitLab Duo provides advisory impact context; deterministic policy and execution evidence control the gate.
+GovernGate checks whether a shared SDK change breaks its known consumers before a human merges it. Billing verifies tokens; Notification issues tokens and serves as a control. The protected controller compares both pinned consumer sources against the exact SDK MR candidate and current main baseline.
 
-See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the architecture, trust boundaries, evidence model, runbook, and verified results.
+- [Architecture and all flow diagrams](ARCHITECTURE.md)
+- [Implementation and operator guide](IMPLEMENTATION.md)
+- [Public monorepo runbook](https://github.com/devothamgn321/governgate-autonomous-release-governance/blob/main/IMPLEMENTATION.md)
+- [Latest dated live evidence](https://github.com/devothamgn321/governgate-autonomous-release-governance/blob/main/LIVE_VERIFICATION_2026-10-21.md)
 
-## Verified live runs — October 19, 2026
+## Deployed flow
 
-[GovernGate MR !5](https://gitlab.com/governgate2/governgate/-/merge_requests/5) is merged. The blocking manual evidence-review stage is deployed on main at commit `6f543ed7264c8fe5419de9e6e623a8ce18661bad`.
+SDK MR checks → credential-free bridge → protected controller → Billing/Notification baseline and candidate tests → trusted evidence → blocking human review → protected final freshness check → mirrored SDK pipeline result. There is no automatic merge.
 
-- **Passing case, SDK MR !6:** [SDK pipeline 2965797284](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965797284) and [controller pipeline 2965822563](https://gitlab.com/governgate2/governgate/-/pipelines/2965822563) passed. The pinned consumer checks passed and [manual evidence-review job 17303673714](https://gitlab.com/governgate2/governgate/-/jobs/17303673714) passed. A successful manual job records the review action; it is not independent proof of test-report authorship.
-- **Blocked case, SDK MR !1:** [SDK pipeline 2965797494](https://gitlab.com/governgate2/core-auth-sdk/-/pipelines/2965797494) was blocked by [controller pipeline 2965800387](https://gitlab.com/governgate2/governgate/-/pipelines/2965800387). [Controller job 17303672652](https://gitlab.com/governgate2/governgate/-/jobs/17303672652) reported Billing baseline PASS and candidate FAIL; Notification passed both versions.
+GovernGate MR !6 merged at `84e6779625460fe29406a5a15c9949f4ee1b206c`. On October 21 the [compatible controller pipeline](https://gitlab.com/governgate2/governgate/-/pipelines/2972749377) passed through manual review and freshness; the [breaking controller pipeline](https://gitlab.com/governgate2/governgate/-/pipelines/2972749891) blocked a Billing candidate regression after one API-timeout retry. This replaces older pending-activation status.
 
-The earlier controller run 2961370304 predates the manual-review stage and failed closed. It is historical evidence, not the current deployment status.
+## Security and scope
 
-## Intended use and current limits
+Only controller and final freshness jobs receive `GOVERNGATE_API_TOKEN`, protected/masked and scoped to `governgate-controller`. SDK jobs, bridge, workers and manual review receive no controller API credential. Source trees are paginated and archives bound to immutable commits and per-file SHA-256 metadata. Candidate tests run without network or credentials, with filesystem, privilege, resource, timeout and output restrictions.
 
-GovernGate is a working prototype for platform teams, service owners, and engineering leaders coordinating shared SDK changes. The demonstrated workflow compares one SDK against Billing and Notification. Broader repository onboarding and enterprise deployment need separate validation; no customer savings or production incident reduction have been measured.
+Both consumers always run; Duo supplies advisory context. The existing six SDK jobs and Duo flow are preserved. Nebius is optional and disabled. Generic discovery, semantic analysis and remediation modules are not the active fixed-consumer approval path.
 
-This operational repository is private. External readers need project access. The public GitHub monorepo contains source, tests, setup documentation, and a captured-evidence demo; that demo does not execute live controller runs. Candidate code can forge its own test reports, so passing results require review and independent result attestation remains future hardening.
+JUnit remains candidate-controlled, so human review is mandatory. The ledger digest is not an independent signature. Final freshness is point-in-time. This is a demonstrated two-consumer prototype, not a general enterprise deployment claim.
 
-## Security boundaries
+## Tests
 
-- The existing six-job SDK security pipeline and working Duo flow are preserved.
-- Only the protected GovernGate controller uses the read-only GitLab API credential scoped to governgate-controller. The SDK bridge and manual-review job receive no controller credential.
-- The controller verifies SDK and consumer commit identities, paginates source trees, checks file hashes, and rechecks moving refs. Workers run verified source in isolated containers without network or credentials.
-- Missing, inconsistent, failed, or incomplete evidence fails closed. A passing matrix requires human review and never triggers an automatic merge.
-- The current ledger SHA-256 digest detects inconsistency but is not an independent signature. A reviewer must inspect the trusted controller artifacts.
-- Nebius remains optional and disabled pending API approval.
+```sh
+python -m pip install '.[test]' pyyaml
+pytest -q
+```
 
-## Run and test locally
-
-Install dependencies with python -m pip install '.[test]' pyyaml and run pytest -q. Container smoke tests and live controller runs require a Docker-in-Docker runner and protected GitLab configuration; local tests do not need credentials.
-
-## Projects
-
-- [GovernGate controller](https://gitlab.com/governgate2/governgate)
-- [core-auth-sdk](https://gitlab.com/governgate2/core-auth-sdk)
-- [billing-service](https://gitlab.com/governgate2/billing-service)
-- [notification-service](https://gitlab.com/governgate2/notification-service)
-
-The public GitHub monorepo and detailed implementation guide are at [governgate-autonomous-release-governance](https://github.com/devothamgn321/governgate-autonomous-release-governance).
+109 controller tests passed at the verified snapshot; 128 across the public monorepo. Live API-backed verification and Docker smoke tests require trusted GitLab configuration and are distinct from unit tests.

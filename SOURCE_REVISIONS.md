@@ -12,3 +12,7 @@ The GovernGate and SDK snapshots were checked against downloaded GitLab main arc
 The SDK bridge is deployed on main and its six existing security/test/build jobs are preserved. GovernGate MR !6 is merged; its post-review freshness stage is deployed. See [the live execution log](LIVE_VERIFICATION_2026-10-21.md) for exact runs, retries and remaining limitations.
 
 Snapshots preserve source files, not GitLab settings, secrets, memberships, runners or the complete upstream Git history. This repository never stores controller credentials.
+
+## Documentation provenance
+
+Architecture, runbooks and service READMEs were refreshed after GitHub sync PR #3. The commit rows above identify GitLab source-code provenance; subsequent documentation corrections are monorepo changes and do not claim a new GitLab deployment. See ARCHITECTURE.md and IMPLEMENTATION.md for the current supported path and remaining limitations.
